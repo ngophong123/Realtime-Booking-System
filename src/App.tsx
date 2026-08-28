@@ -11,7 +11,7 @@ import { TicketModal } from './components/TicketModal';
 import type { Movie, Showtime, User, Room } from './types';
 import API from './services/api';
 import { socket } from './services/socket';
-import { Clapperboard, Sparkles, Flame, CalendarClock } from 'lucide-react';
+import { Clapperboard, Sparkles, Flame, CalendarClock, Bell, Ticket } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,6 +33,9 @@ function App() {
   const [bookingSuccessData, setBookingSuccessData] = useState<any>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
 
+  // Realtime Toast Notifications
+  const [realtimeToast, setRealtimeToast] = useState<{ id: string; title: string; message: string; type: 'seat_freed' | 'admin_booking' } | null>(null);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -46,12 +49,42 @@ function App() {
     const onConnect = () => setIsSocketConnected(true);
     const onDisconnect = () => setIsSocketConnected(false);
 
+    // Socket Event: Ghế được giải phóng do người dùng hủy vé
+    const onSeatFreed = (data: any) => {
+      setRealtimeToast({
+        id: Date.now().toString(),
+        title: '🎟️ CÓ GHẾ TRỐNG VỪA MỞ LẠI!',
+        message: `Phim "${data.movieTitle}" (${data.roomName}) vừa có ${data.seatCount} ghế (${data.seatLabels?.join(', ') || 'Ghế'}) được mở lại!`,
+        type: 'seat_freed',
+      });
+      setTimeout(() => setRealtimeToast(null), 7000);
+    };
+
+    // Socket Event: Admin nhận thông báo đơn hàng mới
+    const onAdminNewBooking = (data: any) => {
+      const stored = localStorage.getItem('user');
+      const cur = stored ? JSON.parse(stored) : null;
+      if (cur && cur.role === 'ADMIN') {
+        setRealtimeToast({
+          id: Date.now().toString(),
+          title: '🔔 ĐƠN ĐẶT VÉ MỚI!',
+          message: `${data.userName} vừa đặt ${data.seatCount} vé phim "${data.movieTitle}" - Tổng tiền: ${Number(data.totalPrice).toLocaleString('vi-VN')}đ`,
+          type: 'admin_booking',
+        });
+        setTimeout(() => setRealtimeToast(null), 7000);
+      }
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('showtime:seat_freed', onSeatFreed);
+    socket.on('admin:new_booking', onAdminNewBooking);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
+      socket.off('showtime:seat_freed', onSeatFreed);
+      socket.off('admin:new_booking', onAdminNewBooking);
     };
   }, []);
 
@@ -103,14 +136,46 @@ function App() {
   else if (movieFilter === 'coming_soon') displayMovies = comingSoonMovies;
 
 ﻿  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* Realtime Floating Toast */}
+      {realtimeToast && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          right: '24px',
+          zIndex: 150,
+          background: realtimeToast.type === 'admin_booking' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #12283a, #081622)',
+          border: realtimeToast.type === 'admin_booking' ? '1px solid #ffd600' : '1px solid #00f2fe',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+          maxWidth: '380px',
+          display: 'flex',
+          gap: '12px',
+          animation: 'slideIn 0.3s ease',
+        }}>
+          <div style={{ marginTop: '2px' }}>
+            {realtimeToast.type === 'admin_booking' ? <Bell size={20} color="#ffd600" /> : <Ticket size={20} color="#00f2fe" />}
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '800', color: realtimeToast.type === 'admin_booking' ? '#ffd600' : '#00f2fe', margin: '0 0 4px' }}>
+              {realtimeToast.title}
+            </h4>
+            <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: 1.4 }}>
+              {realtimeToast.message}
+            </p>
+          </div>
+          <button onClick={() => setRealtimeToast(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            ✕
+          </button>
+        </div>
+      )}
+
       <Navbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
-        onGoHome={() => {
-          setSelectedShowtime(null);
-        }}
+        onGoHome={() => setSelectedShowtime(null)}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
         isSocketConnected={isSocketConnected}

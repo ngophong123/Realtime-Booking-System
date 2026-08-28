@@ -108,7 +108,7 @@ export const MovieDetailModal = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <Ticket size={16} color="#00f2fe" />
-                <span>Chọn Suất Chiếu & Phòng Chiếu</span>
+                <span>Chọn Suất Chiếu & Phòng Chiếu (24h)</span>
               </h3>
               {!user && (
                 <span style={{ fontSize: '12px', color: '#ffd600' }}>
@@ -142,14 +142,14 @@ export const MovieDetailModal = ({
                     }}
                   >
                     <span style={{ fontSize: '18px', fontWeight: '800', color: '#00f2fe' }}>
-                      {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
                     <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>
                       {st.room?.name || 'Phòng Standard'}
                     </span>
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: '6px', fontSize: '11px', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
                       <span>Giá từ:</span>
-                      <span style={{ color: '#00e676', fontWeight: '700' }}>{st.price.toLocaleString('vi-VN')}đ</span>
+                      <span style={{ color: '#00e676', fontWeight: '700' }}>{Number(st.price).toLocaleString('vi-VN')}đ</span>
                     </div>
                   </button>
                 ))}
