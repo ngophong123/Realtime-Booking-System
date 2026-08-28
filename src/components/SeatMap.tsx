@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
-import { ArrowLeft, ShieldAlert, CreditCard, QrCode, Smartphone, Gift, Heart } from 'lucide-react';
-import type { Showtime, Seat } from '../types';
+import { ArrowLeft, ShieldAlert, CreditCard, QrCode, Smartphone, Gift, Heart, CheckCircle2, Tag, Check, Zap, Sparkles, User, Users } from 'lucide-react';
+import type { Showtime, Seat, PaymentSetting, Voucher } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
+import { findBestSeats, type AutoSelectMode } from '../utils/seatAlgorithm';
 
 interface SeatMapProps {
   showtime: Showtime;
@@ -20,12 +21,21 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
   const [bookingLoading, setBookingLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Voucher & Payment states
+  // Smart Auto-Selection States
+  const [autoQty, setAutoQty] = useState<number>(2);
+  const [autoMode, setAutoMode] = useState<AutoSelectMode>('CENTER');
+  const [autoSelectFeedback, setAutoSelectFeedback] = useState<string | null>(null);
+
+  // Voucher states
+  const [myVouchers, setMyVouchers] = useState<Voucher[]>([]);
   const [voucherCodeInput, setVoucherCodeInput] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Payment states
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'ZALOPAY' | 'VIETQR' | 'ATM'>('MOMO');
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSetting | null>(null);
 
   const storedUser = localStorage.getItem('user');
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
@@ -34,13 +44,19 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     const fetchShowtimeDetail = async () => {
       try {
         setLoading(true);
-        const res = await API.get(`/showtimes/${showtime.id}`);
-        setSeats(res.data.showtime?.room?.seats || []);
-        setBookedSeatIds(res.data.bookedSeatIds || []);
+        const [stRes, payRes] = await Promise.all([
+          API.get(`/showtimes/${showtime.id}`),
+          API.get('/payments/settings'),
+        ]);
+        setSeats(stRes.data.showtime?.room?.seats || []);
+        setBookedSeatIds(stRes.data.bookedSeatIds || []);
+        if (payRes.data.settings) {
+          setPaymentSettings(payRes.data.settings);
+        }
 
         const initialHolds: { [seatId: string]: string } = {};
-        if (res.data.heldSeatIds) {
-          res.data.heldSeatIds.forEach((id: string) => {
+        if (stRes.data.heldSeatIds) {
+          stRes.data.heldSeatIds.forEach((id: string) => {
             initialHolds[id] = 'held_by_someone';
           });
         }
@@ -53,6 +69,13 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     };
 
     fetchShowtimeDetail();
+
+    // Tải danh sách voucher của User nếu đã đăng nhập
+    if (currentUser) {
+      API.get('/vouchers/my-vouchers')
+        .then((res) => setMyVouchers(res.data.vouchers || []))
+        .catch((err) => console.error('Lỗi tải voucher của tôi:', err));
+    }
 
     socket.emit('showtime:join', showtime.id);
 
@@ -114,15 +137,16 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     }
 
     setErrorMessage(null);
+    setAutoSelectFeedback(null);
     const isSelected = selectedSeatIds.includes(seat.id);
 
     try {
       if (isSelected) {
-        setSelectedSeatIds((prev) => prev.filter((id) => id !== seat.id));
         await API.post('/seathold/release', {
           showtimeId: showtime.id,
           seatIds: [seat.id],
         });
+        setSelectedSeatIds((prev) => prev.filter((id) => id !== seat.id));
       } else {
         await API.post('/seathold/hold', {
           showtimeId: showtime.id,
@@ -131,36 +155,71 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
         setSelectedSeatIds((prev) => [...prev, seat.id]);
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Không thể giữ ghế này!';
+      const msg = err.response?.data?.message || 'Không thể chọn ghế này! Ghế có thể đã có người giữ.';
       setErrorMessage(msg);
-      // Nếu ghế bị người khác giữ hoặc mua mất, xóa khỏi selection
-      setSelectedSeatIds((prev) => prev.filter((id) => id !== seat.id));
     }
   };
 
-  const getSeatPrice = (type: string) => {
-    const base = Number(showtime.price);
-    if (type === 'VIP') return base + 20000;
-    if (type === 'COUPLE') return base + 40000;
-    return base;
+  // SMART AUTO-SELECT HANDLER
+  const handleSmartAutoSelect = async () => {
+    if (!currentUser) {
+      onRequireAuth();
+      return;
+    }
+
+    setErrorMessage(null);
+    setAutoSelectFeedback(null);
+
+    const heldByOthers = Object.keys(heldSeats).filter((id) => !selectedSeatIds.includes(id));
+    const bestSeats = findBestSeats({
+      seats,
+      bookedSeatIds,
+      heldSeatIds: heldByOthers,
+      quantity: autoQty,
+      mode: autoMode,
+    });
+
+    if (!bestSeats || bestSeats.length === 0) {
+      setErrorMessage(`Không tìm thấy cụm ${autoQty} ghế trống liền kề phù hợp với tiêu chuẩn đã chọn!`);
+      return;
+    }
+
+    const newSeatIds = bestSeats.map((s) => s.id);
+    const newLabels = bestSeats.map((s) => s.label).join(', ');
+
+    try {
+      // Release old selected seats if any
+      if (selectedSeatIds.length > 0) {
+        await API.post('/seathold/release', {
+          showtimeId: showtime.id,
+          seatIds: selectedSeatIds,
+        });
+      }
+
+      // Hold the new best seats
+      await API.post('/seathold/hold', {
+        showtimeId: showtime.id,
+        seatIds: newSeatIds,
+      });
+
+      setSelectedSeatIds(newSeatIds);
+      setAutoSelectFeedback(`⚡ Đã tự động chọn ${autoQty} ghế đẹp nhất: [${newLabels}]!`);
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.message || 'Không thể giữ chỗ tự động! Vui lòng thử lại.');
+    }
   };
 
-  const selectedSeats = seats.filter((s) => selectedSeatIds.includes(s.id));
-  const subTotal = selectedSeats.reduce((sum, s) => sum + getSeatPrice(s.type), 0);
-
-  const discountAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
-  const finalPrice = Math.max(0, subTotal - discountAmount);
-
-  const handleApplyVoucher = async () => {
-    if (!voucherCodeInput.trim()) return;
+  const applyVoucherByCode = async (codeToApply: string) => {
+    if (!codeToApply.trim()) return;
+    setVoucherLoading(true);
+    setVoucherMessage(null);
     try {
-      setVoucherLoading(true);
-      setVoucherMessage(null);
       const res = await API.post('/vouchers/apply', {
-        code: voucherCodeInput.trim(),
+        code: codeToApply.trim(),
         orderAmount: subTotal,
       });
       setAppliedVoucher(res.data);
+      setVoucherCodeInput(codeToApply.trim());
       setVoucherMessage({ type: 'success', text: `Áp dụng thành công! Đã giảm ${Number(res.data.discountAmount).toLocaleString('vi-VN')}đ` });
     } catch (err: any) {
       setAppliedVoucher(null);
@@ -170,21 +229,34 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     }
   };
 
+  const handleSelectQuickVoucher = (v: Voucher) => {
+    if (appliedVoucher && appliedVoucher.voucher?.code === v.code) {
+      setAppliedVoucher(null);
+      setVoucherCodeInput('');
+      setVoucherMessage(null);
+    } else {
+      applyVoucherByCode(v.code);
+    }
+  };
+
+  const handleApplyVoucher = () => {
+    applyVoucherByCode(voucherCodeInput);
+  };
+
   const handleBooking = async () => {
     if (!currentUser) {
       onRequireAuth();
       return;
     }
-
     if (selectedSeatIds.length === 0) {
       setErrorMessage('Vui lòng chọn ít nhất một chiếc ghế!');
       return;
     }
 
-    try {
-      setBookingLoading(true);
-      setErrorMessage(null);
+    setBookingLoading(true);
+    setErrorMessage(null);
 
+    try {
       const res = await API.post('/bookings', {
         showtimeId: showtime.id,
         seatIds: selectedSeatIds,
@@ -194,89 +266,212 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
 
       onBookingSuccess(res.data.booking);
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Lỗi khi thanh toán!';
+      const msg = err.response?.data?.message || 'Đặt vé thất bại! Vui lòng thử lại.';
       setErrorMessage(msg);
     } finally {
       setBookingLoading(false);
     }
   };
 
-  const rows = Array.from(new Set(seats.map((s) => s.row))).sort();
+  // Group seats by row
+  const rowsMap: { [row: string]: Seat[] } = {};
+  seats.forEach((seat) => {
+    if (!rowsMap[seat.row]) rowsMap[seat.row] = [];
+    rowsMap[seat.row].push(seat);
+  });
+
+  const rowKeys = Object.keys(rowsMap).sort();
+
+  // Price Calculation with Seat Types
+  const selectedSeats = seats.filter((s) => selectedSeatIds.includes(s.id));
+  const basePrice = Number(showtime.price);
+
+  const subTotal = selectedSeats.reduce((sum, seat) => {
+    let price = basePrice;
+    if (seat.type === 'VIP') price += 20000;
+    if (seat.type === 'COUPLE') price += 40000;
+    return sum + price;
+  }, 0);
+
+  const discountAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
+  const finalPrice = Math.max(0, subTotal - discountAmount);
+
+  // Determine QR URL to display
+  let currentQrUrl = paymentSettings?.momoQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=MOMO_PAYMENT';
+  if (paymentMethod === 'VIETQR') currentQrUrl = paymentSettings?.vietQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=VIETQR_PAYMENT';
+  if (paymentMethod === 'ZALOPAY') currentQrUrl = paymentSettings?.zaloPayQrUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=ZALOPAY_PAYMENT';
 
 ﻿  return (
-    <div style={{ maxWidth: '1080px', margin: '0 auto', paddingBottom: '60px' }}>
-      <button
-        onClick={onBack}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          color: '#cbd5e1',
-          padding: '8px 16px',
-          borderRadius: '10px',
-          cursor: 'pointer',
-          marginBottom: '20px',
-          fontSize: '13px',
-          fontWeight: '600',
-        }}
-      >
-        <ArrowLeft size={16} /> Quay lại danh sách phim
-      </button>
-
-      {/* Thông tin suất chiếu */}
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <span style={{ fontSize: '11px', color: '#00f2fe', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '800' }}>
-            RẠP CINEVERSE • {showtime.room?.name}
-          </span>
-          <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#fff', margin: '4px 0' }}>
+    <div style={{ padding: '20px 0 60px' }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <button
+          onClick={onBack}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#f8fafc',
+            padding: '8px 16px',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '13px',
+          }}
+        >
+          <ArrowLeft size={16} /> Quay Lại
+        </button>
+        <div style={{ textAlign: 'right' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>
             {showtime.movie?.title}
           </h2>
-          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-            Khung giờ: {new Date(showtime.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(showtime.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} ({new Date(showtime.startTime).toLocaleDateString('vi-VN')})
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>Ghế Thường</span>
-            <span style={{ fontSize: '14px', fontWeight: '800', color: '#00f2fe' }}>{Number(showtime.price).toLocaleString('vi-VN')}đ</span>
-          </div>
-          <div style={{ background: 'rgba(255, 214, 0, 0.05)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255, 214, 0, 0.2)' }}>
-            <span style={{ fontSize: '11px', color: '#ffd600', display: 'block' }}>Ghế VIP</span>
-            <span style={{ fontSize: '14px', fontWeight: '800', color: '#ffd600' }}>{(Number(showtime.price) + 20000).toLocaleString('vi-VN')}đ</span>
-          </div>
-          <div style={{ background: 'rgba(255, 64, 129, 0.05)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255, 64, 129, 0.2)' }}>
-            <span style={{ fontSize: '11px', color: '#ff4081', display: 'block' }}>Ghế Đôi (Couple)</span>
-            <span style={{ fontSize: '14px', fontWeight: '800', color: '#ff4081' }}>{(Number(showtime.price) + 40000).toLocaleString('vi-VN')}đ</span>
-          </div>
+          <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            {showtime.room?.name} • {new Date(showtime.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(showtime.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })} ({new Date(showtime.startTime).toLocaleDateString('vi-VN')})
+          </span>
         </div>
       </div>
 
-      {errorMessage && (
-        <div style={{ marginBottom: '20px', padding: '14px 18px', borderRadius: '12px', background: 'rgba(255, 23, 68, 0.15)', border: '1px solid rgba(255, 23, 68, 0.4)', color: '#ff5252', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '600' }}>
-          <ShieldAlert size={18} />
-          <span>{errorMessage}</span>
+      {/* SMART SEAT AUTO-SELECTION TOOLBAR */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '16px 20px',
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.08) 0%, rgba(79, 172, 254, 0.04) 100%)',
+          border: '1px solid rgba(0, 242, 254, 0.3)',
+          borderRadius: '16px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ background: 'linear-gradient(135deg, #00f2fe, #4facfe)', padding: '6px', borderRadius: '8px', color: '#000', display: 'flex' }}>
+            <Zap size={18} />
+          </div>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: '800', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>TỰ ĐỘNG CHỌN GHẾ THÔNG MINH</span>
+              <Sparkles size={13} color="#00f2fe" />
+            </h4>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Thuật toán tìm vị trí xem phim &amp; âm thanh tốt nhất</span>
+          </div>
+        </div>
+
+        {/* Quantity & Mode Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          {/* Quantity selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(0, 0, 0, 0.3)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {[
+              { qty: 1, label: '1 Vé', icon: User },
+              { qty: 2, label: '2 Vé (Đôi)', icon: Users },
+              { qty: 3, label: '3 Vé', icon: Users },
+              { qty: 4, label: '4 Vé (Nhóm)', icon: Users },
+            ].map((q) => (
+              <button
+                key={q.qty}
+                type="button"
+                onClick={() => setAutoQty(q.qty)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: autoQty === q.qty ? 'linear-gradient(135deg, #00f2fe, #4facfe)' : 'transparent',
+                  color: autoQty === q.qty ? '#000' : '#cbd5e1',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Mode Selector */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[
+              { id: 'CENTER', label: '👑 Vị Trí Vàng', color: '#00f2fe' },
+              { id: 'VIP', label: '🟨 Ghế VIP', color: '#ffd600' },
+              { id: 'COUPLE', label: '💖 Ghế Đôi', color: '#f43f5e' },
+              { id: 'BUDGET', label: '💸 Ghế Tiết Kiệm', color: '#00e676' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setAutoMode(m.id as any)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  border: autoMode === m.id ? `1px solid ${m.color}` : '1px solid rgba(255, 255, 255, 0.08)',
+                  background: autoMode === m.id ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  color: autoMode === m.id ? m.color : '#94a3b8',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Action Button */}
+          <button
+            type="button"
+            onClick={handleSmartAutoSelect}
+            className="glow-btn"
+            style={{
+              padding: '7px 16px',
+              fontSize: '12px',
+              fontWeight: '800',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Zap size={14} />
+            <span>⚡ Chọn Nhanh {autoQty} Ghế</span>
+          </button>
+        </div>
+      </div>
+
+      {autoSelectFeedback && (
+        <div style={{ background: 'rgba(0, 230, 118, 0.15)', border: '1px solid rgba(0, 230, 118, 0.4)', borderRadius: '12px', padding: '10px 16px', color: '#00e676', fontSize: '13px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkles size={16} />
+          <span>{autoSelectFeedback}</span>
         </div>
       )}
 
-      {/* Sơ đồ màn hình & Ma trận ghế */}
-      <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', marginBottom: '28px' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto 40px' }}>
-          <div style={{ height: '5px', background: 'linear-gradient(90deg, transparent, #00f2fe, transparent)', borderRadius: '10px', boxShadow: '0 0 25px #00f2fe' }} />
-          <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '4px', marginTop: '12px', display: 'inline-block' }}>
+      {errorMessage && (
+        <div style={{ background: 'rgba(255, 23, 68, 0.15)', border: '1px solid rgba(255, 23, 68, 0.4)', borderRadius: '12px', padding: '12px 18px', color: '#ff5252', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <ShieldAlert size={18} />
+          <span style={{ fontSize: '13px', fontWeight: '600' }}>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Screen & Seat Grid Container */}
+      <div className="glass-panel" style={{ padding: '36px', marginBottom: '24px', textAlign: 'center' }}>
+        {/* Cinema Screen */}
+        <div style={{ maxWidth: '680px', margin: '0 auto 48px', position: 'relative' }}>
+          <div style={{ height: '4px', background: 'linear-gradient(90deg, transparent, #00f2fe, #4facfe, transparent)', borderRadius: '4px', boxShadow: '0 0 20px #00f2fe' }} />
+          <span style={{ fontSize: '11px', color: '#64748b', letterSpacing: '4px', textTransform: 'uppercase', marginTop: '8px', display: 'block' }}>
             MÀN HÌNH CHIẾU
           </span>
         </div>
 
+        {/* Seat Grid */}
         {loading ? (
-          <p style={{ color: '#94a3b8', padding: '40px' }}>Đang tải sơ đồ phòng chiếu...</p>
+          <div style={{ padding: '60px', color: '#94a3b8' }}>Đang tải sơ đồ ghế...</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', overflowX: 'auto', padding: '10px' }}>
-            {rows.map((row) => {
-              const rowSeats = seats.filter((s) => s.row === row).sort((a, b) => a.column - b.column);
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', overflowX: 'auto', padding: '10px' }}>
+            {rowKeys.map((row) => {
+              const rowSeats = rowsMap[row].sort((a, b) => a.column - b.column);
               return (
                 <div key={row} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ width: '24px', color: '#64748b', fontWeight: '800', fontSize: '12px' }}>{row}</span>
@@ -285,34 +480,38 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                       const isBooked = bookedSeatIds.includes(seat.id);
                       const isHeld = !!heldSeats[seat.id];
                       const isSelected = selectedSeatIds.includes(seat.id);
-                      const isVIP = seat.type === 'VIP';
+
+                      const isVip = seat.type === 'VIP';
                       const isCouple = seat.type === 'COUPLE';
 
-                      let bg = 'rgba(0, 242, 254, 0.08)';
-                      let border = '1px solid rgba(0, 242, 254, 0.3)';
-                      let color = '#00f2fe';
+                      let bg = 'rgba(255, 255, 255, 0.05)';
+                      let border = '1px solid rgba(255, 255, 255, 0.15)';
+                      let color = '#94a3b8';
+                      let cursor = 'pointer';
 
-                      if (isVIP) {
-                        bg = 'rgba(255, 214, 0, 0.1)';
+                      if (isCouple) {
+                        bg = 'rgba(244, 63, 94, 0.15)';
+                        border = '1px solid rgba(244, 63, 94, 0.4)';
+                        color = '#f43f5e';
+                      } else if (isVip) {
+                        bg = 'rgba(255, 214, 0, 0.15)';
                         border = '1px solid rgba(255, 214, 0, 0.4)';
                         color = '#ffd600';
-                      } else if (isCouple) {
-                        bg = 'rgba(255, 64, 129, 0.12)';
-                        border = '1px solid rgba(255, 64, 129, 0.45)';
-                        color = '#ff4081';
                       }
 
                       if (isBooked) {
-                        bg = 'rgba(255, 23, 68, 0.18)';
-                        border = '1px solid rgba(255, 23, 68, 0.3)';
+                        bg = 'rgba(255, 23, 68, 0.25)';
+                        border = '1px solid rgba(255, 23, 68, 0.5)';
                         color = '#ff5252';
+                        cursor = 'not-allowed';
                       } else if (isHeld && !isSelected) {
-                        bg = 'rgba(255, 152, 0, 0.2)';
+                        bg = 'rgba(255, 152, 0, 0.25)';
                         border = '1px solid rgba(255, 152, 0, 0.5)';
                         color = '#ff9800';
+                        cursor = 'not-allowed';
                       } else if (isSelected) {
                         bg = 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)';
-                        border = '1px solid #fff';
+                        border = '1px solid #00f2fe';
                         color = '#000';
                       }
 
@@ -321,28 +520,24 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                           key={seat.id}
                           disabled={isBooked || (isHeld && !isSelected)}
                           onClick={() => handleToggleSeat(seat)}
-                          title={`${seat.label} - ${isVIP ? 'VIP' : isCouple ? 'COUPLE' : 'Thường'} (${getSeatPrice(seat.type).toLocaleString('vi-VN')}đ)`}
                           style={{
-                            width: isCouple ? '72px' : '38px',
-                            height: '38px',
+                            width: isCouple ? '72px' : '36px',
+                            height: '34px',
                             borderRadius: '8px',
-                            border,
                             background: bg,
+                            border,
                             color,
                             fontSize: '11px',
                             fontWeight: '800',
-                            cursor: isBooked || (isHeld && !isSelected) ? 'not-allowed' : 'pointer',
+                            cursor,
                             display: 'flex',
-                            flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                            opacity: isBooked ? 0.35 : 1,
-                            position: 'relative',
-                            boxShadow: isSelected ? '0 0 14px rgba(0, 242, 254, 0.6)' : 'none',
+                            gap: '3px',
+                            transition: 'all 0.15s ease',
                           }}
                         >
-                          {isCouple && <Heart size={10} style={{ marginBottom: '-2px' }} />}
+                          {isCouple && <Heart size={10} color={isSelected ? '#000' : '#f43f5e'} />}
                           <span>{seat.label}</span>
                         </button>
                       );
@@ -358,8 +553,8 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
         {/* Chú thích loại ghế */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '36px', flexWrap: 'wrap', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
           <LegendItem label="Ghế Thường" color="#00f2fe" bg="rgba(0, 242, 254, 0.15)" />
-          <LegendItem label="Ghế VIP" color="#ffd600" bg="rgba(255, 214, 0, 0.15)" />
-          <LegendItem label="Ghế Đôi (Couple)" color="#ff4081" bg="rgba(255, 64, 129, 0.15)" />
+          <LegendItem label="Ghế VIP (+20k)" color="#ffd600" bg="rgba(255, 214, 0, 0.15)" />
+          <LegendItem label="Ghế Đôi (+40k)" color="#f43f5e" bg="rgba(244, 63, 94, 0.15)" />
           <LegendItem label="Đang Chọn" color="#000" bg="linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)" />
           <LegendItem label="Đang Giữ" color="#ff9800" bg="rgba(255, 152, 0, 0.3)" />
           <LegendItem label="Đã Bán" color="#ff5252" bg="rgba(255, 23, 68, 0.3)" />
@@ -368,12 +563,12 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
 
       {/* Thanh toán & Voucher */}
       <div className="glass-panel" style={{ padding: '28px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CreditCard size={18} color="#00f2fe" /> Chọn Phương Thức Thanh Toán
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
               {[
                 { id: 'MOMO', name: 'Ví MoMo', desc: 'Quét mã MoMo tức thì', icon: Smartphone, color: '#d82d8b' },
                 { id: 'ZALOPAY', name: 'Ví ZaloPay', desc: 'Thanh toán ZaloPay', icon: Smartphone, color: '#0068ff' },
@@ -405,14 +600,71 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
               })}
             </div>
 
-            <div style={{ marginTop: '20px' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#cbd5e1', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Gift size={14} color="#ffd600" /> Mã Voucher Giảm Giá
+            {/* Hiển thị QR Code Thanh Toán Rạp Cấu Hình */}
+            {paymentMethod !== 'ATM' && (
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                <div style={{ background: '#fff', padding: '8px', borderRadius: '10px', display: 'flex' }}>
+                  <img src={currentQrUrl} alt="Mã QR Thanh Toán" style={{ width: '90px', height: '90px', objectFit: 'contain' }} />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#00f2fe', margin: '0 0 4px' }}>
+                    Quét Mã {paymentMethod === 'MOMO' ? 'Ví MoMo' : paymentMethod === 'ZALOPAY' ? 'Ví ZaloPay' : 'VietQR Ngân Hàng'}
+                  </h4>
+                  <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '0 0 4px' }}>
+                    Chủ TK: <b>{paymentSettings?.bankAccountName || 'RAP PHIM CINEVERSE'}</b>
+                  </p>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    STK: {paymentSettings?.bankAccountNumber || '190368889999'} ({paymentSettings?.bankName || 'Techcombank'})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* VOUCHER SELECTION & INPUT */}
+            <div style={{ marginTop: '16px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#cbd5e1', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Gift size={15} color="#ffd600" /> Mã Voucher Giảm Giá (Chọn nhanh bên dưới)
               </h4>
+
+              {/* Quick Voucher Selector Chips */}
+              {myVouchers.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                  {myVouchers.map((v) => {
+                    const isSelected = appliedVoucher && appliedVoucher.voucher?.code === v.code;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => handleSelectQuickVoucher(v)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: isSelected ? '1px solid #00e676' : '1px solid rgba(255, 214, 0, 0.3)',
+                          background: isSelected ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 214, 0, 0.06)',
+                          color: isSelected ? '#00e676' : '#ffd600',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <Tag size={12} />
+                        <span>{v.code} ({v.discountPercent ? `-${v.discountPercent}%` : `-${Number(v.discountAmount).toLocaleString('vi-VN')}đ`})</span>
+                        {isSelected && <Check size={12} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Ô Nhập Voucher Thủ Công */}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
-                  placeholder="Nhập mã (VD: CINEVERSE10, VIP20K, SIEUDEAL50)"
+                  placeholder="Nhập mã voucher (hoặc click chọn ở trên)"
                   value={voucherCodeInput}
                   onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
                   style={{
@@ -433,7 +685,7 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                   className="glow-btn"
                   style={{ padding: '8px 16px', fontSize: '12px' }}
                 >
-                  {voucherLoading ? 'Đang kiểm tra...' : 'Áp Dụng'}
+                  {voucherLoading ? 'Đang áp dụng...' : 'Áp Dụng'}
                 </button>
               </div>
 
@@ -485,9 +737,13 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                 marginTop: '20px',
                 opacity: selectedSeatIds.length === 0 ? 0.5 : 1,
                 cursor: selectedSeatIds.length === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
               }}
             >
-              {bookingLoading ? 'Đang Xử Lý Thanh Toán...' : `Thanh Toán ${finalPrice.toLocaleString('vi-VN')}đ`}
+              {bookingLoading ? 'Đang Xử Lý Thanh Toán...' : <><CheckCircle2 size={18} /> Xác Nhận Đã Thanh Toán &amp; Đặt Vé</>}
             </button>
           </div>
         </div>

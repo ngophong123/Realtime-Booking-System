@@ -1,5 +1,7 @@
 export type Role = 'USER' | 'ADMIN';
 export type SeatType = 'STANDARD' | 'VIP' | 'COUPLE';
+export type RoomType = 'STANDARD' | 'IMAX' | 'COUPLE' | 'VIP';
+export type MovieStatus = 'NOW_SHOWING' | 'COMING_SOON';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 
 export interface User {
@@ -16,6 +18,7 @@ export interface Movie {
   duration: number;
   releaseDate: string;
   posterUrl?: string;
+  status: MovieStatus | string;
 }
 
 export interface Seat {
@@ -30,6 +33,7 @@ export interface Seat {
 export interface Room {
   id: string;
   name: string;
+  type?: RoomType | string;
   rows: number;
   columns: number;
   seats?: Seat[];
@@ -81,4 +85,34 @@ export interface Voucher {
   usageLimit: number;
   usedCount: number;
   isActive: boolean;
+  userId?: string | null;
+  user?: User;
+}
+
+export interface PaymentSetting {
+  id: string;
+  momoQrUrl?: string;
+  vietQrUrl?: string;
+  zaloPayQrUrl?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId?: string | null;
+  title: string;
+  message: string;
+  type: 'BOOKING' | 'APPROVED' | 'CANCELLED' | 'VOUCHER' | 'SYSTEM' | string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface EmailSetting {
+  id: string;
+  smtpEmail?: string;
+  smtpPassword?: string;
+  senderName?: string;
+  adminEmail?: string;
 }

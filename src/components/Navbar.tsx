@@ -1,5 +1,6 @@
-﻿import { Film, User, LogOut, Radio, ShieldAlert, Ticket } from 'lucide-react';
+import { Film, User, LogOut, Radio, ShieldAlert, Ticket } from 'lucide-react';
 import type { User as UserType } from '../types';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface NavbarProps {
   user: UserType | null;
@@ -8,6 +9,7 @@ interface NavbarProps {
   onGoHome: () => void;
   onOpenAdmin: () => void;
   onOpenMyTickets: () => void;
+  onOpenProfile: () => void;
   isSocketConnected: boolean;
 }
 
@@ -18,6 +20,7 @@ export const Navbar = ({
   onGoHome,
   onOpenAdmin,
   onOpenMyTickets,
+  onOpenProfile,
   isSocketConnected,
 }: NavbarProps) => {
   return (
@@ -39,7 +42,7 @@ export const Navbar = ({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {/* Live sync badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', background: isSocketConnected ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)', padding: '6px 12px', borderRadius: '20px', border: '1px solid ' + (isSocketConnected ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.3)'), color: isSocketConnected ? '#00e676' : '#ff1744' }}>
           <Radio size={14} />
@@ -93,11 +96,30 @@ export const Navbar = ({
           </button>
         )}
 
+        {/* Notification Bell Dropdown */}
+        <NotificationDropdown user={user} />
+
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.05)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-              <User size={16} color="#00f2fe" />
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>{user.name}</span>
+            <div
+              onClick={onOpenProfile}
+              title="Nhấn để xem Hồ Sơ, Ví Voucher & Kho Vé Ảo"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(0, 242, 254, 0.1)',
+                padding: '6px 14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(0, 242, 254, 0.3)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #00f2fe, #4facfe)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px' }}>
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{user.name}</span>
               <span style={{ fontSize: '10px', background: user.role === 'ADMIN' ? '#ff1744' : '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
                 {user.role}
               </span>

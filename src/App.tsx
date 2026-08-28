@@ -6,8 +6,11 @@ import { SeatMap } from './components/SeatMap';
 import { AuthModal } from './components/AuthModal';
 import { AdminModal } from './components/AdminModal';
 import { MovieDetailModal } from './components/MovieDetailModal';
+import { MovieRecommendations } from './components/MovieRecommendations';
 import { MyTicketsModal } from './components/MyTicketsModal';
 import { TicketModal } from './components/TicketModal';
+import { ProfileModal } from './components/ProfileModal';
+import { AIChatWidget } from './components/AIChatWidget';
 import type { Movie, Showtime, User, Room } from './types';
 import API from './services/api';
 import { socket } from './services/socket';
@@ -19,7 +22,7 @@ function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loading, setLoading] = useState(true);
-  const [movieFilter, setMovieFilter] = useState<'now_showing' | 'coming_soon' | 'all'>('now_showing');
+  const [movieFilter, setMovieFilter] = useState<'now_showing' | 'coming_soon' | 'all'>('all');
 
   // Selection States
   const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
@@ -27,6 +30,7 @@ function App() {
   // Modal States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
   const [detailMovie, setDetailMovie] = useState<Movie | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -34,7 +38,7 @@ function App() {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
 
   // Realtime Toast Notifications
-  const [realtimeToast, setRealtimeToast] = useState<{ id: string; title: string; message: string; type: 'seat_freed' | 'admin_booking' } | null>(null);
+  const [realtimeToast, setRealtimeToast] = useState<{ id: string; title: string; message: string; type: 'seat_freed' | 'admin_booking' | 'approved' } | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -75,16 +79,34 @@ function App() {
       }
     };
 
+    // Socket Event: User nhận thông báo đơn vé được Admin duyệt
+    const onBookingApproved = (data: any) => {
+      const stored = localStorage.getItem('user');
+      const cur = stored ? JSON.parse(stored) : null;
+      if (cur && cur.id === data.userId) {
+        setRealtimeToast({
+          id: Date.now().toString(),
+          title: '🎟️ VÉ CỦA BẠN ĐÃ ĐƯỢC DUYỆT!',
+          message: `Đơn vé phim "${data.movieTitle}" đã được Admin duyệt thành công! Bạn có thể vào "Vé Của Tôi" để nhận vé vào rạp.`,
+          type: 'approved',
+        });
+        fetchData();
+        setTimeout(() => setRealtimeToast(null), 9000);
+      }
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('showtime:seat_freed', onSeatFreed);
     socket.on('admin:new_booking', onAdminNewBooking);
+    socket.on('booking:approved', onBookingApproved);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('showtime:seat_freed', onSeatFreed);
       socket.off('admin:new_booking', onAdminNewBooking);
+      socket.off('booking:approved', onBookingApproved);
     };
   }, []);
 
@@ -126,10 +148,9 @@ function App() {
     setIsDetailOpen(true);
   };
 
-  // Phân loại phim Đang Chiếu vs Sắp Chiếu
-  const nowTime = Date.now();
-  const nowShowingMovies = movies.filter((m) => new Date(m.releaseDate).getTime() <= nowTime);
-  const comingSoonMovies = movies.filter((m) => new Date(m.releaseDate).getTime() > nowTime);
+  // Phân loại phim Đang Chiếu vs Sắp Chiếu dựa vào trường status
+  const nowShowingMovies = movies.filter((m) => m.status === 'NOW_SHOWING' || (!m.status && new Date(m.releaseDate).getTime() <= Date.now()));
+  const comingSoonMovies = movies.filter((m) => m.status === 'COMING_SOON' || (!m.status && new Date(m.releaseDate).getTime() > Date.now()));
 
   let displayMovies = movies;
   if (movieFilter === 'now_showing') displayMovies = nowShowingMovies;
@@ -144,8 +165,8 @@ function App() {
           top: '80px',
           right: '24px',
           zIndex: 150,
-          background: realtimeToast.type === 'admin_booking' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : 'linear-gradient(135deg, #12283a, #081622)',
-          border: realtimeToast.type === 'admin_booking' ? '1px solid #ffd600' : '1px solid #00f2fe',
+          background: realtimeToast.type === 'admin_booking' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : realtimeToast.type === 'approved' ? 'linear-gradient(135deg, #064e3b, #022c22)' : 'linear-gradient(135deg, #12283a, #081622)',
+          border: realtimeToast.type === 'admin_booking' ? '1px solid #ffd600' : realtimeToast.type === 'approved' ? '1px solid #00e676' : '1px solid #00f2fe',
           borderRadius: '16px',
           padding: '16px 20px',
           boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
@@ -155,10 +176,10 @@ function App() {
           animation: 'slideIn 0.3s ease',
         }}>
           <div style={{ marginTop: '2px' }}>
-            {realtimeToast.type === 'admin_booking' ? <Bell size={20} color="#ffd600" /> : <Ticket size={20} color="#00f2fe" />}
+            {realtimeToast.type === 'admin_booking' ? <Bell size={20} color="#ffd600" /> : <Ticket size={20} color={realtimeToast.type === 'approved' ? '#00e676' : '#00f2fe'} />}
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ fontSize: '13px', fontWeight: '800', color: realtimeToast.type === 'admin_booking' ? '#ffd600' : '#00f2fe', margin: '0 0 4px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '800', color: realtimeToast.type === 'admin_booking' ? '#ffd600' : realtimeToast.type === 'approved' ? '#00e676' : '#00f2fe', margin: '0 0 4px' }}>
               {realtimeToast.title}
             </h4>
             <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: 1.4 }}>
@@ -178,6 +199,7 @@ function App() {
         onGoHome={() => setSelectedShowtime(null)}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
         isSocketConnected={isSocketConnected}
       />
 
@@ -201,6 +223,9 @@ function App() {
                 onViewDetail={() => handleOpenDetail(movies[0])}
               />
             )}
+
+              {/* AI Movie Recommendations */}
+              <MovieRecommendations onSelectMovie={handleOpenDetail} />
 
             <div style={{ marginBottom: '60px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -289,6 +314,14 @@ function App() {
         onSelectShowtime={(st) => setSelectedShowtime(st)}
         user={user}
         onRequireAuth={() => setIsAuthOpen(true)}
+        onSelectMovie={handleOpenDetail}
+      />
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+        onUpdateUser={(updated) => setUser(updated)}
       />
 
       <MyTicketsModal
@@ -296,6 +329,8 @@ function App() {
         onClose={() => setIsMyTicketsOpen(false)}
         onCancelSuccess={fetchData}
       />
+
+      <AIChatWidget onSelectMovie={handleOpenDetail} />
 
       <TicketModal
         isOpen={!!bookingSuccessData}
@@ -328,7 +363,7 @@ const ButtonTab = ({ isActive, onClick, icon: Icon, label, count }: ButtonTabPro
       borderRadius: '8px',
       border: 'none',
       background: isActive ? 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)' : 'transparent',
-      color: isActive ? '#000' : '#94a3b8',
+      color: isActive ? '#00f2fe' : '#94a3b8',
       fontWeight: isActive ? '800' : '600',
       fontSize: '12px',
       cursor: 'pointer',
@@ -340,7 +375,7 @@ const ButtonTab = ({ isActive, onClick, icon: Icon, label, count }: ButtonTabPro
     <span style={{
       fontSize: '10px',
       background: isActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-      color: isActive ? '#000' : '#cbd5e1',
+      color: isActive ? '#00f2fe' : '#cbd5e1',
       padding: '1px 6px',
       borderRadius: '10px',
       fontWeight: '800'
