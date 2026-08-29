@@ -1,27 +1,28 @@
-﻿import { useState, type FormEvent } from 'react';
-import { X, Lock, Mail, User as UserIcon } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { X, Mail, Lock, User, ShieldAlert, Film } from 'lucide-react';
+import type { User as UserType } from '../types';
 import API from '../services/api';
-import type { User } from '../types';
+import { RippleButton } from './common/RippleButton';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (user: User, token: string) => void;
+  onAuthSuccess: (user: UserType) => void;
 }
 
-export const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
+export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('matkhau123');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
     setLoading(true);
 
     try {
@@ -29,112 +30,206 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
         const res = await API.post('/auth/login', { email, password });
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
-        onSuccess(res.data.user, res.data.token);
-        onClose();
+        onAuthSuccess(res.data.user);
       } else {
-        await API.post('/auth/register', { name, email, password });
-        const res = await API.post('/auth/login', { email, password });
+        const res = await API.post('/auth/register', { name, email, password });
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
-        onSuccess(res.data.user, res.data.token);
-        onClose();
+        onAuthSuccess(res.data.user);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+      setError(err.response?.data?.message || 'Đã có lỗi xảy ra! Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div className="glass-panel" style={{ width: '90%', maxWidth: '420px', padding: '32px', position: 'relative' }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+        padding: '20px',
+      }}
+    >
+      <div
+        className="cine-card animate-fade-in"
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          borderRadius: 'var(--radius-modal)',
+          padding: '36px 32px',
+          position: 'relative',
+          backgroundColor: '#FFFFFF',
+          boxShadow: 'var(--shadow-dropdown)',
+        }}
+      >
+        {/* Close Button */}
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            backgroundColor: 'var(--bg-soft)',
+            border: 'none',
+            color: 'var(--text-muted)',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
         >
-          <X size={20} />
+          <X size={16} />
         </button>
 
-        <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: '#fff', textAlign: 'center' }}>
-          {isLogin ? 'Đăng Nhập' : 'Tạo Tài Khoản'}
-        </h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginBottom: '24px' }}>
-          {isLogin ? 'Đăng nhập để đặt vé và giữ ghế Realtime' : 'Đăng ký tài khoản để trải nghiệm CINEVERSE'}
-        </p>
+        {/* Brand Header */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              boxShadow: '0 4px 12px var(--primary-glow)',
+            }}
+          >
+            <Film size={26} />
+          </div>
 
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text)', margin: '0 0 6px' }}>
+            {isLogin ? 'ĐĂNG NHẬP CINEVERSE' : 'TẠO TÀI KHOẢN MỚI'}
+          </h2>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            {isLogin ? 'Chào mừng bạn trở lại với rạp chiếu phim Cineverse' : 'Đăng ký nhận ngay voucher xem phim đặc quyền'}
+          </span>
+        </div>
+
+        {/* Error Alert */}
         {error && (
-          <div style={{ background: 'rgba(255, 23, 68, 0.15)', border: '1px solid rgba(255, 23, 68, 0.4)', color: '#ff5252', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
-            {error}
+          <div
+            style={{
+              backgroundColor: 'var(--danger-soft)',
+              border: '1px solid var(--danger)',
+              borderRadius: 'var(--radius-input)',
+              padding: '10px 14px',
+              color: 'var(--danger)',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '18px',
+            }}
+          >
+            <ShieldAlert size={16} />
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Auth Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {!isLogin && (
             <div>
-              <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>Họ và tên</label>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '10px 14px', gap: '10px' }}>
-                <UserIcon size={16} color="#94a3b8" />
+              <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '5px' }}>
+                Họ và Tên
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
                 <input
                   type="text"
                   placeholder="Nguyễn Văn A"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '14px' }}
+                  className="cine-input"
+                  style={{ paddingLeft: '36px' }}
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>Email</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '10px 14px', gap: '10px' }}>
-              <Mail size={16} color="#94a3b8" />
+            <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '5px' }}>
+              Địa Chỉ Email
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
               <input
                 type="email"
-                placeholder="example@gmail.com"
+                placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '14px' }}
+                className="cine-input"
+                style={{ paddingLeft: '36px' }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>Mật khẩu</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '10px 14px', gap: '10px' }}>
-              <Lock size={16} color="#94a3b8" />
+            <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '5px' }}>
+              Mật Khẩu
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', width: '100%', fontSize: '14px' }}
+                className="cine-input"
+                style={{ paddingLeft: '36px' }}
               />
             </div>
           </div>
 
-          <button
+          {/* Submit Button */}
+          <RippleButton
             type="submit"
-            disabled={loading}
-            className="glow-btn"
-            style={{ width: '100%', marginTop: '8px', padding: '12px' }}
+            loading={loading}
+            loadingText="Đang Xử Lý..."
+            style={{ width: '100%', padding: '12px', marginTop: '8px', fontSize: '14px', fontWeight: '700' }}
           >
-            {loading ? 'Đang xử lý...' : isLogin ? 'Đăng Nhập' : 'Tạo Tài Khoản'}
-          </button>
+            {isLogin ? 'ĐĂNG NHẬP NGAY' : 'ĐĂNG KÝ TÀI KHOẢN'}
+          </RippleButton>
         </form>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#94a3b8' }}>
-          {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-          <span
-            onClick={() => { setIsLogin(!isLogin); setError(''); }}
-            style={{ color: '#00f2fe', cursor: 'pointer', fontWeight: '600' }}
+        {/* Footer switch mode text link */}
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+          <span>{isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError(null);
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--primary)',
+              fontWeight: '700',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              textUnderlineOffset: '3px',
+            }}
           >
-            {isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}
-          </span>
+            {isLogin ? 'Đăng ký ngay' : 'Đăng nhập ngay'}
+          </button>
         </div>
       </div>
     </div>

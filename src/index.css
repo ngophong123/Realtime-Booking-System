@@ -1,168 +1,388 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import './theme.css';
 
-:root {
-  --bg-primary: #0a0c10;
-  --bg-secondary: #12161f;
-  --bg-card: rgba(22, 27, 38, 0.75);
-  --accent-cyan: #00f2fe;
-  --accent-green: #00e676;
-  --accent-gold: #ffd600;
-  --accent-red: #ff1744;
-  --accent-purple: #9d4edd;
-  --accent-pink: #ff007f;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.08);
-}
-
-* {
-  margin: 0;
-  padding: 0;
+*, *::before, *::after {
   box-sizing: border-box;
-  font-family: 'Outfit', sans-serif;
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-main);
-  min-height: 100vh;
-  overflow-x: hidden;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(157, 78, 221, 0.05) 0%, transparent 40%);
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
 
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
+a {
+  color: var(--secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
-.glow-btn {
-  background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-  color: #000;
-  font-weight: 700;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(0, 242, 254, 0.3);
+a:hover {
+  color: var(--primary);
 }
 
-.glow-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 242, 254, 0.5);
+button, input, select, textarea {
+  font-family: inherit;
 }
 
-.cinema-screen-container {
-  perspective: 600px;
-  margin: 20px auto 40px;
-  text-align: center;
-  width: 80%;
-  max-width: 600px;
-}
-
-.cinema-screen {
-  height: 40px;
-  background: linear-gradient(to bottom, rgba(0, 242, 254, 0.4), transparent);
-  border-top: 3px solid var(--accent-cyan);
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  box-shadow: 0 10px 40px rgba(0, 242, 254, 0.25);
-  transform: rotateX(-20deg);
-}
-
-.screen-text {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 4px;
-  color: var(--accent-cyan);
-  margin-top: 10px;
-  text-transform: uppercase;
-}
-
-.seat {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px 8px 3px 3px;
-  display: flex;
+/* ==========================================================================
+   INTERACTIVE BUTTONS & RIPPLE EFFECT
+   ========================================================================== */
+.btn-primary {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 8px;
+  background-color: var(--primary);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: var(--radius-btn);
+  border: none;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
   user-select: none;
 }
 
-.seat.available {
-  background: #1e293b;
-  color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.seat.available:hover {
-  background: #334155;
-  color: #fff;
-  transform: scale(1.12);
-  border-color: var(--accent-cyan);
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 4px 12px var(--primary-glow);
 }
 
-.seat.vip {
-  border: 1px solid rgba(157, 78, 221, 0.5);
-  background: rgba(157, 78, 221, 0.15);
-  color: #d8b4fe;
-}
-.seat.vip:hover {
-  background: var(--accent-purple);
-  color: #fff;
-  box-shadow: 0 0 15px rgba(157, 78, 221, 0.6);
+.btn-primary:active {
+  transform: scale(0.97);
 }
 
-.seat.couple {
-  border: 1px solid rgba(255, 0, 127, 0.5);
-  background: rgba(255, 0, 127, 0.15);
-  color: #fda4af;
-  width: 80px;
-}
-.seat.couple:hover {
-  background: var(--accent-pink);
-  color: #fff;
-  box-shadow: 0 0 15px rgba(255, 0, 127, 0.6);
-}
-
-.seat.selected {
-  background: var(--accent-green) !important;
-  color: #000 !important;
-  box-shadow: 0 0 20px rgba(0, 230, 118, 0.7) !important;
-  transform: scale(1.15) !important;
-  animation: pulse 1.5s infinite;
-}
-
-.seat.holding {
-  background: var(--accent-gold) !important;
-  color: #000 !important;
+.btn-primary:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
-  box-shadow: 0 0 15px rgba(255, 214, 0, 0.5);
-  animation: blink 2s infinite ease-in-out;
+  transform: none;
+  box-shadow: none;
 }
 
-.seat.booked {
-  background: rgba(255, 23, 68, 0.2) !important;
-  color: #f87171 !important;
-  border: 1px solid rgba(255, 23, 68, 0.3) !important;
-  cursor: not-allowed;
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 18px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-outline:hover {
+  background-color: var(--bg-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-outline:active {
+  transform: scale(0.97);
+}
+
+.btn-outline:disabled {
   opacity: 0.5;
-  text-decoration: line-through;
+  cursor: not-allowed;
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1.15); }
-  50% { transform: scale(1.22); }
+.btn-outline-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 20px;
+  border-radius: var(--radius-btn);
+  border: 1.5px solid var(--primary);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+.btn-outline-primary:hover {
+  background-color: var(--primary-soft);
+  color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-outline-primary:active {
+  transform: scale(0.97);
+}
+
+/* Material Ripple Span */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-animation 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background-color: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+.ripple-dark {
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   CARDS & CONTAINERS
+   ========================================================================== */
+.cine-card {
+  background-color: var(--surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  transition: transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 250ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease;
+}
+
+.cine-card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(255, 122, 26, 0.3);
+}
+
+/* Movie Poster Container with Inner Zoom */
+.poster-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background-color: var(--bg-soft);
+}
+
+.poster-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.poster-wrap:hover img {
+  transform: scale(1.06);
+}
+
+/* Poster Hover Overlay */
+.poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 29, 35, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 250ms ease;
+  backdrop-filter: blur(2px);
+}
+
+.poster-wrap:hover .poster-overlay {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   INPUTS & FORMS
+   ========================================================================== */
+.cine-input {
+  width: 100%;
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.cine-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.cine-input::placeholder {
+  color: var(--text-light);
+}
+
+/* ==========================================================================
+   BADGES & LABELS
+   ========================================================================== */
+.badge-age {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--age-badge);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.badge-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.badge-success {
+  background-color: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-danger {
+  background-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge-primary {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* ==========================================================================
+   SHIMMER SKELETON LOADING
+   ========================================================================== */
+.skeleton-shimmer {
+  background: #EAECEF;
+  background-image: linear-gradient(
+    90deg,
+    #EAECEF 0px,
+    #F6F7F9 40px,
+    #EAECEF 80px
+  );
+  background-size: 600px 100%;
+  animation: shimmer-sweep 1.6s infinite linear;
+  border-radius: 8px;
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -300px 0;
+  }
+  100% {
+    background-position: 300px 0;
+  }
+}
+
+/* ==========================================================================
+   TOP LOADING BAR
+   ========================================================================== */
+.top-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary) 0%, #FF9A4A 100%);
+  z-index: 9999;
+  box-shadow: 0 0 8px var(--primary-glow);
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+/* ==========================================================================
+   SEAT SELECTION SPRING EFFECT
+   ========================================================================== */
+.seat-spring {
+  animation: spring-pop 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes spring-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ==========================================================================
+   SLIDE-IN DRAWER & MODAL ANIMATIONS
+   ========================================================================== */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #F6F7FA;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
 }

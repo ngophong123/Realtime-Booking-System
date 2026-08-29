@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
+import { QuickBookingBar } from './components/QuickBookingBar';
 import { MovieCard } from './components/MovieCard';
 import { SeatMap } from './components/SeatMap';
 import { AuthModal } from './components/AuthModal';
@@ -11,10 +12,13 @@ import { MyTicketsModal } from './components/MyTicketsModal';
 import { TicketModal } from './components/TicketModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AIChatWidget } from './components/AIChatWidget';
+import { TopLoadingBar } from './components/common/TopLoadingBar';
+import { SkeletonCard } from './components/common/SkeletonCard';
+import { SlideInMenu } from './components/common/SlideInMenu';
 import type { Movie, Showtime, User, Room } from './types';
 import API from './services/api';
 import { socket } from './services/socket';
-import { Clapperboard, Sparkles, Flame, CalendarClock, Bell, Ticket } from 'lucide-react';
+import { MapPin, Bell } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,16 +26,17 @@ function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loading, setLoading] = useState(true);
-  const [movieFilter, setMovieFilter] = useState<'now_showing' | 'coming_soon' | 'all'>('all');
+  const [movieFilter, setMovieFilter] = useState<'now_showing' | 'coming_soon' | 'all'>('now_showing');
 
   // Selection States
   const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
 
-  // Modal States
+  // Modal & Drawer States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
+  const [isSlideMenuOpen, setIsSlideMenuOpen] = useState(false);
   const [detailMovie, setDetailMovie] = useState<Movie | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [bookingSuccessData, setBookingSuccessData] = useState<any>(null);
@@ -43,74 +48,32 @@ function App() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('user');
-      }
+      setUser(JSON.parse(storedUser));
     }
 
-    const onConnect = () => setIsSocketConnected(true);
-    const onDisconnect = () => setIsSocketConnected(false);
+    fetchInitialData();
 
-    // Socket Event: Ghế được giải phóng do người dùng hủy vé
-    const onSeatFreed = (data: any) => {
+    socket.on('connect', () => setIsSocketConnected(true));
+    socket.on('disconnect', () => setIsSocketConnected(false));
+
+    socket.on('seat:freed', (data: { showtimeId: string; seatLabels: string[]; movieTitle: string }) => {
       setRealtimeToast({
         id: Date.now().toString(),
-        title: '🎟️ CÓ GHẾ TRỐNG VỪA MỞ LẠI!',
-        message: `Phim "${data.movieTitle}" (${data.roomName}) vừa có ${data.seatCount} ghế (${data.seatLabels?.join(', ') || 'Ghế'}) được mở lại!`,
+        title: '🎟️ CƠ HỘI ĐẶT VÉ MỚI!',
+        message: `Vừa có khách hủy vé phim "${data.movieTitle}". Ghế [${data.seatLabels.join(', ')}] hiện đã trống, đặt ngay!`,
         type: 'seat_freed',
       });
       setTimeout(() => setRealtimeToast(null), 7000);
-    };
-
-    // Socket Event: Admin nhận thông báo đơn hàng mới
-    const onAdminNewBooking = (data: any) => {
-      const stored = localStorage.getItem('user');
-      const cur = stored ? JSON.parse(stored) : null;
-      if (cur && cur.role === 'ADMIN') {
-        setRealtimeToast({
-          id: Date.now().toString(),
-          title: '🔔 ĐƠN ĐẶT VÉ MỚI!',
-          message: `${data.userName} vừa đặt ${data.seatCount} vé phim "${data.movieTitle}" - Tổng tiền: ${Number(data.totalPrice).toLocaleString('vi-VN')}đ`,
-          type: 'admin_booking',
-        });
-        setTimeout(() => setRealtimeToast(null), 7000);
-      }
-    };
-
-    // Socket Event: User nhận thông báo đơn vé được Admin duyệt
-    const onBookingApproved = (data: any) => {
-      const stored = localStorage.getItem('user');
-      const cur = stored ? JSON.parse(stored) : null;
-      if (cur && cur.id === data.userId) {
-        setRealtimeToast({
-          id: Date.now().toString(),
-          title: '🎟️ VÉ CỦA BẠN ĐÃ ĐƯỢC DUYỆT!',
-          message: `Đơn vé phim "${data.movieTitle}" đã được Admin duyệt thành công! Bạn có thể vào "Vé Của Tôi" để nhận vé vào rạp.`,
-          type: 'approved',
-        });
-        fetchData();
-        setTimeout(() => setRealtimeToast(null), 9000);
-      }
-    };
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('showtime:seat_freed', onSeatFreed);
-    socket.on('admin:new_booking', onAdminNewBooking);
-    socket.on('booking:approved', onBookingApproved);
+    });
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('showtime:seat_freed', onSeatFreed);
-      socket.off('admin:new_booking', onAdminNewBooking);
-      socket.off('booking:approved', onBookingApproved);
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('seat:freed');
     };
   }, []);
 
-  const fetchData = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
       const [moviesRes, showtimesRes, roomsRes] = await Promise.all([
@@ -118,19 +81,16 @@ function App() {
         API.get('/showtimes'),
         API.get('/rooms'),
       ]);
+
       setMovies(moviesRes.data.movies || []);
       setShowtimes(showtimesRes.data.showtimes || []);
       setRooms(roomsRes.data.rooms || []);
     } catch (err) {
-      console.error('Lỗi tải dữ liệu:', err);
+      console.error('Lỗi nạp dữ liệu ban đầu:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -138,60 +98,74 @@ function App() {
     setUser(null);
   };
 
-  const handleSelectMovieForBooking = (movie: Movie) => {
-    setDetailMovie(movie);
-    setIsDetailOpen(true);
-  };
-
   const handleOpenDetail = (movie: Movie) => {
     setDetailMovie(movie);
     setIsDetailOpen(true);
   };
 
-  // Phân loại phim Đang Chiếu vs Sắp Chiếu dựa vào trường status
-  const nowShowingMovies = movies.filter((m) => m.status === 'NOW_SHOWING' || (!m.status && new Date(m.releaseDate).getTime() <= Date.now()));
-  const comingSoonMovies = movies.filter((m) => m.status === 'COMING_SOON' || (!m.status && new Date(m.releaseDate).getTime() > Date.now()));
+  const handleSelectMovieForBooking = (movie: Movie) => {
+    const movieShowtimes = showtimes.filter((s) => s.movieId === movie.id);
+    if (movieShowtimes.length > 0) {
+      setSelectedShowtime(movieShowtimes[0]);
+    } else {
+      handleOpenDetail(movie);
+    }
+  };
 
-  let displayMovies = movies;
-  if (movieFilter === 'now_showing') displayMovies = nowShowingMovies;
-  else if (movieFilter === 'coming_soon') displayMovies = comingSoonMovies;
+  // Filter movies
+  const filteredMovies = movies.filter((m) => {
+    if (movieFilter === 'now_showing') return m.status === 'NOW_SHOWING';
+    if (movieFilter === 'coming_soon') return m.status === 'COMING_SOON';
+    return true;
+  });
 
-﻿  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      {/* Realtime Floating Toast */}
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+      {/* Top Progress Bar */}
+      <TopLoadingBar isLoading={loading} />
+
+      {/* Realtime Toast Notification */}
       {realtimeToast && (
-        <div style={{
-          position: 'fixed',
-          top: '80px',
-          right: '24px',
-          zIndex: 150,
-          background: realtimeToast.type === 'admin_booking' ? 'linear-gradient(135deg, #1e293b, #0f172a)' : realtimeToast.type === 'approved' ? 'linear-gradient(135deg, #064e3b, #022c22)' : 'linear-gradient(135deg, #12283a, #081622)',
-          border: realtimeToast.type === 'admin_booking' ? '1px solid #ffd600' : realtimeToast.type === 'approved' ? '1px solid #00e676' : '1px solid #00f2fe',
-          borderRadius: '16px',
-          padding: '16px 20px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-          maxWidth: '380px',
-          display: 'flex',
-          gap: '12px',
-          animation: 'slideIn 0.3s ease',
-        }}>
-          <div style={{ marginTop: '2px' }}>
-            {realtimeToast.type === 'admin_booking' ? <Bell size={20} color="#ffd600" /> : <Ticket size={20} color={realtimeToast.type === 'approved' ? '#00e676' : '#00f2fe'} />}
+        <div
+          style={{
+            position: 'fixed',
+            top: '84px',
+            right: '24px',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border)',
+            borderLeft: '4px solid var(--primary)',
+            boxShadow: 'var(--shadow-dropdown)',
+            borderRadius: 'var(--radius-card)',
+            padding: '14px 18px',
+            zIndex: 150,
+            maxWidth: '360px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--primary-soft)',
+              padding: '6px',
+              borderRadius: '6px',
+              color: 'var(--primary)',
+            }}
+          >
+            <Bell size={18} />
           </div>
-          <div style={{ flex: 1 }}>
-            <h4 style={{ fontSize: '13px', fontWeight: '800', color: realtimeToast.type === 'admin_booking' ? '#ffd600' : realtimeToast.type === 'approved' ? '#00e676' : '#00f2fe', margin: '0 0 4px' }}>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: '0 0 2px' }}>
               {realtimeToast.title}
             </h4>
-            <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: 1.4 }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
               {realtimeToast.message}
             </p>
           </div>
-          <button onClick={() => setRealtimeToast(null)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', alignSelf: 'flex-start' }}>
-            ✕
-          </button>
         </div>
       )}
 
+      {/* Main Navbar */}
       <Navbar
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -200,88 +174,227 @@ function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenSlideMenu={() => setIsSlideMenuOpen(true)}
+        onSelectFilter={(f) => {
+          setSelectedShowtime(null);
+          setMovieFilter(f);
+        }}
         isSocketConnected={isSocketConnected}
       />
 
-      <main style={{ flex: 1, padding: '0 32px', maxWidth: '1300px', margin: '0 auto', width: '100%' }}>
+      {/* Slide-in Menu Drawer */}
+      <SlideInMenu
+        isOpen={isSlideMenuOpen}
+        onClose={() => setIsSlideMenuOpen(false)}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
+        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenMyTickets={() => setIsMyTicketsOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onSelectFilter={(f) => {
+          setSelectedShowtime(null);
+          setMovieFilter(f);
+        }}
+      />
+
+      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 24px 80px' }}>
         {selectedShowtime ? (
           <SeatMap
             showtime={selectedShowtime}
             onBack={() => setSelectedShowtime(null)}
-            onBookingSuccess={(data) => {
-              setBookingSuccessData(data);
-              fetchData();
+            onBookingSuccess={(booking) => {
+              setBookingSuccessData(booking);
+              setSelectedShowtime(null);
             }}
             onRequireAuth={() => setIsAuthOpen(true)}
           />
         ) : (
           <div>
+            {/* Hero Banner Carousel */}
             {movies.length > 0 && (
               <HeroBanner
-                movie={movies[0]}
-                onBookNow={() => handleSelectMovieForBooking(movies[0])}
-                onViewDetail={() => handleOpenDetail(movies[0])}
+                movies={movies}
+                onBookNow={handleSelectMovieForBooking}
+                onViewDetail={handleOpenDetail}
               />
             )}
 
-              {/* AI Movie Recommendations */}
-              <MovieRecommendations onSelectMovie={handleOpenDetail} />
+            {/* Quick Booking 4-Step Bar (Sits on top/under hero) */}
+            <div style={{ marginTop: '-40px', marginBottom: '40px' }}>
+              <QuickBookingBar
+                movies={movies}
+                rooms={rooms}
+                showtimes={showtimes}
+                onSelectShowtime={(st) => setSelectedShowtime(st)}
+              />
+            </div>
 
+            {/* AI Movie Recommendations */}
+            <MovieRecommendations onSelectMovie={handleOpenDetail} />
+
+            {/* Main Movie Catalog Section */}
             <div style={{ marginBottom: '60px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Clapperboard size={22} color="#00f2fe" />
-                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#fff', margin: 0 }}>
-                    Danh Sách Phim Rạp
-                  </h2>
+              {/* Category Tabs Header */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '2px solid var(--border)',
+                  marginBottom: '28px',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                }}
+              >
+                {/* Left: Tab items */}
+                <div style={{ display: 'flex', gap: '32px' }}>
+                  <button
+                    onClick={() => setMovieFilter('now_showing')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '12px 4px',
+                      fontSize: '18px',
+                      fontWeight: movieFilter === 'now_showing' ? '800' : '600',
+                      color: movieFilter === 'now_showing' ? 'var(--text)' : 'var(--text-muted)',
+                      borderBottom: movieFilter === 'now_showing' ? '3px solid var(--primary)' : '3px solid transparent',
+                      marginBottom: '-2px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <span>Phim Đang Chiếu</span>
+                    <span
+                      style={{
+                        backgroundColor: movieFilter === 'now_showing' ? 'var(--primary-soft)' : 'var(--bg-soft)',
+                        color: movieFilter === 'now_showing' ? 'var(--primary)' : 'var(--text-muted)',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      {movies.filter((m) => m.status === 'NOW_SHOWING').length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setMovieFilter('coming_soon')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '12px 4px',
+                      fontSize: '18px',
+                      fontWeight: movieFilter === 'coming_soon' ? '800' : '600',
+                      color: movieFilter === 'coming_soon' ? 'var(--text)' : 'var(--text-muted)',
+                      borderBottom: movieFilter === 'coming_soon' ? '3px solid var(--primary)' : '3px solid transparent',
+                      marginBottom: '-2px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <span>Phim Sắp Chiếu</span>
+                    <span
+                      style={{
+                        backgroundColor: movieFilter === 'coming_soon' ? 'var(--primary-soft)' : 'var(--bg-soft)',
+                        color: movieFilter === 'coming_soon' ? 'var(--primary)' : 'var(--text-muted)',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      {movies.filter((m) => m.status === 'COMING_SOON').length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setMovieFilter('all')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '12px 4px',
+                      fontSize: '18px',
+                      fontWeight: movieFilter === 'all' ? '800' : '600',
+                      color: movieFilter === 'all' ? 'var(--text)' : 'var(--text-muted)',
+                      borderBottom: movieFilter === 'all' ? '3px solid var(--primary)' : '3px solid transparent',
+                      marginBottom: '-2px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <span>Tất Cả Phim</span>
+                  </button>
                 </div>
 
-                <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)', gap: '4px' }}>
-                  <ButtonTab
-                    isActive={movieFilter === 'now_showing'}
-                    onClick={() => setMovieFilter('now_showing')}
-                    icon={Flame}
-                    label="🔥 Phim Đang Chiếu"
-                    count={nowShowingMovies.length}
-                  />
-                  <ButtonTab
-                    isActive={movieFilter === 'coming_soon'}
-                    onClick={() => setMovieFilter('coming_soon')}
-                    icon={CalendarClock}
-                    label="⏳ Phim Sắp Chiếu"
-                    count={comingSoonMovies.length}
-                  />
-                  <ButtonTab
-                    isActive={movieFilter === 'all'}
-                    onClick={() => setMovieFilter('all')}
-                    icon={Sparkles}
-                    label="Tất Cả"
-                    count={movies.length}
-                  />
+                {/* Right: Location Indicator */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-soft)',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <MapPin size={15} color="var(--primary)" />
+                  <span>Khu vực: <b>Toàn Quốc</b></span>
                 </div>
               </div>
 
+              {/* Movie Cards Grid or Skeleton Loading */}
               {loading ? (
-                <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
-                  <p>Đang kết nối tới Backend và tải danh sách phim...</p>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                    gap: '24px',
+                  }}
+                >
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
                 </div>
-              ) : displayMovies.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
-                  <p>Không có phim nào trong mục này.</p>
-                  {user?.role === 'ADMIN' && (
-                    <button onClick={() => setIsAdminOpen(true)} className="glow-btn" style={{ marginTop: '16px', padding: '10px 20px' }}>
-                      Mở Bảng Điều Hành Thêm Phim
-                    </button>
-                  )}
+              ) : filteredMovies.length === 0 ? (
+                <div
+                  style={{
+                    padding: '60px 20px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-soft)',
+                    borderRadius: 'var(--radius-card)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  Không tìm thấy bộ phim nào trong danh mục này.
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '28px' }}>
-                  {displayMovies.map((movie) => (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                    gap: '24px',
+                  }}
+                >
+                  {filteredMovies.map((movie) => (
                     <MovieCard
                       key={movie.id}
                       movie={movie}
-                      onSelect={handleSelectMovieForBooking}
-                      onViewDetail={handleOpenDetail}
+                      onBookNow={() => handleSelectMovieForBooking(movie)}
+                      onViewDetail={() => handleOpenDetail(movie)}
                     />
                   ))}
                 </div>
@@ -291,10 +404,23 @@ function App() {
         )}
       </main>
 
+      {/* AI Chatbot Assistant Widget */}
+      <AIChatWidget onSelectMovie={handleOpenDetail} />
+
+      {/* Modals */}
+      <TicketModal
+        isOpen={!!bookingSuccessData}
+        onClose={() => setBookingSuccessData(null)}
+        bookingData={bookingSuccessData}
+      />
+
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onSuccess={(loggedUser) => setUser(loggedUser)}
+        onAuthSuccess={(userData) => {
+          setUser(userData);
+          setIsAuthOpen(false);
+        }}
       />
 
       <AdminModal
@@ -303,7 +429,19 @@ function App() {
         movies={movies}
         rooms={rooms}
         showtimes={showtimes}
-        onRefreshData={fetchData}
+        onRefreshData={fetchInitialData}
+      />
+
+      <MyTicketsModal
+        isOpen={isMyTicketsOpen}
+        onClose={() => setIsMyTicketsOpen(false)}
+        user={user}
+      />
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
       />
 
       <MovieDetailModal
@@ -311,78 +449,16 @@ function App() {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         showtimes={showtimes}
-        onSelectShowtime={(st) => setSelectedShowtime(st)}
+        onSelectShowtime={(st) => {
+          setSelectedShowtime(st);
+          setIsDetailOpen(false);
+        }}
         user={user}
         onRequireAuth={() => setIsAuthOpen(true)}
         onSelectMovie={handleOpenDetail}
       />
-
-      <ProfileModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        user={user}
-        onUpdateUser={(updated) => setUser(updated)}
-      />
-
-      <MyTicketsModal
-        isOpen={isMyTicketsOpen}
-        onClose={() => setIsMyTicketsOpen(false)}
-        onCancelSuccess={fetchData}
-      />
-
-      <AIChatWidget onSelectMovie={handleOpenDetail} />
-
-      <TicketModal
-        isOpen={!!bookingSuccessData}
-        onClose={() => {
-          setBookingSuccessData(null);
-          setSelectedShowtime(null);
-        }}
-        bookingData={bookingSuccessData}
-      />
     </div>
   );
 }
-
-interface ButtonTabProps {
-  isActive: boolean;
-  onClick: () => void;
-  icon: any;
-  label: string;
-  count: number;
-}
-
-const ButtonTab = ({ isActive, onClick, icon: Icon, label, count }: ButtonTabProps) => (
-  <button
-    onClick={onClick}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '8px 14px',
-      borderRadius: '8px',
-      border: 'none',
-      background: isActive ? 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)' : 'transparent',
-      color: isActive ? '#00f2fe' : '#94a3b8',
-      fontWeight: isActive ? '800' : '600',
-      fontSize: '12px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-    }}
-  >
-    <Icon size={14} />
-    <span>{label}</span>
-    <span style={{
-      fontSize: '10px',
-      background: isActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-      color: isActive ? '#00f2fe' : '#cbd5e1',
-      padding: '1px 6px',
-      borderRadius: '10px',
-      fontWeight: '800'
-    }}>
-      {count}
-    </span>
-  </button>
-);
 
 export default App;

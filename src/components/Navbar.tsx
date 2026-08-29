@@ -1,147 +1,309 @@
-import { Film, User, LogOut, Radio, ShieldAlert, Ticket } from 'lucide-react';
-import type { User as UserType } from '../types';
+import React from 'react';
+import {
+  Film,
+  Menu,
+  ShieldAlert,
+  User as UserIcon,
+  Ticket,
+} from 'lucide-react';
+import type { User } from '../types';
 import { NotificationDropdown } from './NotificationDropdown';
+import { RippleButton } from './common/RippleButton';
 
 interface NavbarProps {
-  user: UserType | null;
+  user: User | null;
   onOpenAuth: () => void;
   onLogout: () => void;
   onGoHome: () => void;
   onOpenAdmin: () => void;
   onOpenMyTickets: () => void;
   onOpenProfile: () => void;
+  onOpenSlideMenu: () => void;
+  onSelectFilter?: (filter: 'now_showing' | 'coming_soon' | 'all') => void;
   isSocketConnected: boolean;
 }
 
-export const Navbar = ({
+export const Navbar: React.FC<NavbarProps> = ({
   user,
   onOpenAuth,
-  onLogout,
   onGoHome,
   onOpenAdmin,
   onOpenMyTickets,
   onOpenProfile,
+  onOpenSlideMenu,
+  onSelectFilter,
   isSocketConnected,
-}: NavbarProps) => {
+}) => {
   return (
-    <header style={{ background: 'rgba(10, 12, 16, 0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 32px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', position: 'sticky', top: 0, zIndex: 50, marginBottom: '32px' }}>
-      <div 
-        onClick={onGoHome}
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        backgroundColor: '#FFFFFF',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+        zIndex: 100,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '0 24px',
+          height: '70px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
       >
-        <div style={{ background: 'linear-gradient(135deg, #00f2fe, #4facfe)', padding: '8px', borderRadius: '10px', display: 'flex' }}>
-          <Film size={24} color="#000" />
-        </div>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: '800', background: 'linear-gradient(to right, #00f2fe, #fff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
-            CINEVERSE
-          </h1>
-          <span style={{ fontSize: '10px', color: '#94a3b8', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            Realtime Cinema
-          </span>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Live sync badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', background: isSocketConnected ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 23, 68, 0.1)', padding: '6px 12px', borderRadius: '20px', border: '1px solid ' + (isSocketConnected ? 'rgba(0, 230, 118, 0.3)' : 'rgba(255, 23, 68, 0.3)'), color: isSocketConnected ? '#00e676' : '#ff1744' }}>
-          <Radio size={14} />
-          <span>{isSocketConnected ? 'LIVE SYNC' : 'OFFLINE'}</span>
-        </div>
-
-        {/* If Admin -> Show Admin Portal button */}
-        {user?.role === 'ADMIN' && (
-          <button
-            onClick={onOpenAdmin}
+        {/* Left: Logo & Nav Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+          {/* Logo */}
+          <div
+            onClick={onGoHome}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              background: 'linear-gradient(135deg, rgba(255, 23, 68, 0.2), rgba(255, 82, 82, 0.3))',
-              border: '1px solid rgba(255, 23, 68, 0.5)',
-              color: '#ff5252',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '700',
+              gap: '8px',
               cursor: 'pointer',
-              boxShadow: '0 0 15px rgba(255, 23, 68, 0.2)',
+              userSelect: 'none',
             }}
           >
-            <ShieldAlert size={15} />
-            <span>Quản Trị Rạp (Admin)</span>
-          </button>
-        )}
-
-        {/* If User -> Show My Tickets button */}
-        {user && (
-          <button
-            onClick={onOpenMyTickets}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#f8fafc',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            <Ticket size={15} color="#00f2fe" />
-            <span>Vé Của Tôi</span>
-          </button>
-        )}
-
-        {/* Notification Bell Dropdown */}
-        <NotificationDropdown user={user} />
-
-        {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
-              onClick={onOpenProfile}
-              title="Nhấn để xem Hồ Sơ, Ví Voucher & Kho Vé Ảo"
               style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                background: 'rgba(0, 242, 254, 0.1)',
-                padding: '6px 14px',
-                borderRadius: '10px',
-                border: '1px solid rgba(0, 242, 254, 0.3)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 10px var(--primary-glow)',
               }}
             >
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #00f2fe, #4facfe)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px' }}>
+              <Film size={22} />
+            </div>
+            <span
+              style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                letterSpacing: '-0.5px',
+                color: 'var(--secondary)',
+              }}
+            >
+              CINE<span style={{ color: 'var(--primary)' }}>VERSE</span>
+            </span>
+          </div>
+
+          {/* Desktop Nav Links */}
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '24px',
+            }}
+          >
+            <button
+              onClick={() => {
+                onGoHome();
+                onSelectFilter?.('now_showing');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text)',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                padding: '6px 0',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text)')}
+            >
+              Phim Đang Chiếu
+            </button>
+
+            <button
+              onClick={() => {
+                onGoHome();
+                onSelectFilter?.('coming_soon');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text)',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                padding: '6px 0',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text)')}
+            >
+              Phim Sắp Chiếu
+            </button>
+
+            <button
+              onClick={() => {
+                if (user) onOpenProfile();
+                else onOpenAuth();
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text)',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                padding: '6px 0',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text)')}
+            >
+              Ưu Đãi &amp; Voucher
+            </button>
+          </nav>
+        </div>
+
+        {/* Right Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Socket Live Sync Badge */}
+          <div
+            title={isSocketConnected ? 'Hệ thống ghế kết nối trực tiếp Realtime' : 'Mất kết nối máy chủ'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: isSocketConnected ? 'var(--success-soft)' : 'var(--danger-soft)',
+              color: isSocketConnected ? 'var(--success)' : 'var(--danger)',
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '11px',
+              fontWeight: '700',
+            }}
+          >
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: isSocketConnected ? 'var(--success)' : 'var(--danger)',
+                display: 'inline-block',
+                boxShadow: isSocketConnected ? '0 0 6px rgba(22, 163, 74, 0.6)' : 'none',
+              }}
+            />
+            <span>LIVE SYNC</span>
+          </div>
+
+          {/* Notifications Dropdown */}
+          <NotificationDropdown user={user} />
+
+          {/* User Logged In State */}
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={onOpenMyTickets}
+                className="btn-outline"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '13px',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <Ticket size={16} color="var(--primary)" />
+                <span>Vé Của Tôi</span>
+              </button>
+
+              {user.role === 'ADMIN' && (
+                <button
+                  onClick={onOpenAdmin}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--primary-soft)',
+                    border: '1px solid var(--primary)',
+                    color: 'var(--primary)',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-btn)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ShieldAlert size={16} />
+                  <span>Admin Panel</span>
+                </button>
+              )}
+
+              {/* Profile Avatar Button */}
+              <div
+                onClick={onOpenProfile}
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  fontSize: '15px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px var(--primary-glow)',
+                }}
+                title={user.name}
+              >
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: '#fff' }}>{user.name}</span>
-              <span style={{ fontSize: '10px', background: user.role === 'ADMIN' ? '#ff1744' : '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                {user.role}
-              </span>
             </div>
-            <button
-              onClick={onLogout}
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '6px 8px', borderRadius: '8px' }}
-              title="Đăng xuất"
+          ) : (
+            <RippleButton
+              onClick={onOpenAuth}
+              style={{
+                padding: '8px 18px',
+                fontSize: '13px',
+              }}
             >
-              <LogOut size={16} />
-            </button>
-          </div>
-        ) : (
+              <UserIcon size={16} />
+              <span>Đăng Nhập</span>
+            </RippleButton>
+          )}
+
+          {/* Hamburger Menu Toggle (triggers Slide-in Menu) */}
           <button
-            onClick={onOpenAuth}
-            className="glow-btn"
-            style={{ padding: '8px 18px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            onClick={onOpenSlideMenu}
+            title="Mở menu"
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-soft)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)';
+              e.currentTarget.style.color = 'var(--primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.color = 'var(--text)';
+            }}
           >
-            <User size={16} />
-            <span>Đăng Nhập / Đăng Ký</span>
+            <Menu size={20} />
           </button>
-        )}
+        </div>
       </div>
     </header>
   );

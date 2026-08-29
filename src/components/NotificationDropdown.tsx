@@ -90,13 +90,13 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
     switch (type) {
       case 'BOOKING':
       case 'APPROVED':
-        return <Ticket size={16} color="#00f2fe" />;
+        return <Ticket size={15} color="var(--primary)" />;
       case 'VOUCHER':
-        return <Gift size={16} color="#ffd600" />;
+        return <Gift size={15} color="var(--primary)" />;
       case 'CANCELLED':
-        return <AlertCircle size={16} color="#ff5252" />;
+        return <AlertCircle size={15} color="var(--danger)" />;
       default:
-        return <Info size={16} color="#38bdf8" />;
+        return <Info size={15} color="var(--secondary)" />;
     }
   };
 
@@ -106,32 +106,33 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
         onClick={() => setIsOpen(!isOpen)}
         title="Thông Báo"
         style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          color: '#f8fafc',
+          backgroundColor: 'var(--bg-soft)',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
           padding: '8px',
-          borderRadius: '10px',
+          borderRadius: '8px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
+          transition: 'all 0.2s ease',
         }}
       >
-        <Bell size={18} color={unreadCount > 0 ? '#00f2fe' : '#cbd5e1'} />
+        <Bell size={18} color={unreadCount > 0 ? 'var(--primary)' : 'var(--text-muted)'} />
         {unreadCount > 0 && (
           <span
             style={{
               position: 'absolute',
               top: '-4px',
               right: '-4px',
-              background: '#ff1744',
-              color: '#fff',
+              backgroundColor: 'var(--danger)',
+              color: '#FFFFFF',
               fontSize: '10px',
               fontWeight: '800',
               padding: '1px 5px',
               borderRadius: '10px',
-              boxShadow: '0 0 8px rgba(255, 23, 68, 0.8)',
+              boxShadow: '0 0 6px rgba(220, 38, 38, 0.5)',
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -141,16 +142,16 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
 
       {isOpen && (
         <div
+          className="cine-card animate-fade-in"
           style={{
             position: 'absolute',
             top: '48px',
             right: '0',
             width: '360px',
             maxHeight: '480px',
-            background: 'linear-gradient(135deg, #161c28 0%, #0c0f16 100%)',
-            border: '1px solid rgba(0, 242, 254, 0.35)',
-            borderRadius: '16px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+            backgroundColor: '#FFFFFF',
+            borderRadius: 'var(--radius-card)',
+            boxShadow: 'var(--shadow-dropdown)',
             zIndex: 120,
             display: 'flex',
             flexDirection: 'column',
@@ -164,13 +165,13 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: '14px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              background: 'rgba(0, 242, 254, 0.05)',
+              borderBottom: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-soft)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Bell size={16} color="#00f2fe" />
-              <span style={{ fontSize: '14px', fontWeight: '800', color: '#fff' }}>
+              <Bell size={16} color="var(--primary)" />
+              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text)' }}>
                 Thông Báo ({unreadCount})
               </span>
             </div>
@@ -180,16 +181,16 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#00f2fe',
-                  fontSize: '11px',
-                  fontWeight: '600',
+                  color: 'var(--primary)',
+                  fontSize: '12px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                 }}
               >
-                <CheckCheck size={13} /> Đã đọc tất cả
+                <CheckCheck size={14} /> Đã đọc hết
               </button>
             )}
           </div>
@@ -197,11 +198,11 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
           {/* List */}
           <div style={{ overflowY: 'auto', flex: 1, padding: '8px' }}>
             {loading && notifications.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                 Đang tải thông báo...
               </div>
             ) : notifications.length === 0 ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                 Không có thông báo nào.
               </div>
             ) : (
@@ -211,10 +212,10 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
                   onClick={() => !n.isRead && handleMarkAsRead(n.id)}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: '10px',
-                    marginBottom: '6px',
-                    background: n.isRead ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 242, 254, 0.08)',
-                    border: n.isRead ? '1px solid transparent' : '1px solid rgba(0, 242, 254, 0.25)',
+                    borderRadius: '8px',
+                    marginBottom: '4px',
+                    backgroundColor: n.isRead ? 'transparent' : 'var(--primary-soft)',
+                    border: n.isRead ? '1px solid transparent' : '1px solid rgba(255, 122, 26, 0.2)',
                     cursor: 'pointer',
                     display: 'flex',
                     gap: '10px',
@@ -225,17 +226,17 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
                   <div style={{ marginTop: '2px' }}>{getNotifIcon(n.type)}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                      <h4 style={{ fontSize: '12px', fontWeight: '700', color: n.isRead ? '#cbd5e1' : '#fff', margin: 0 }}>
+                      <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: 0 }}>
                         {n.title}
                       </h4>
                       {!n.isRead && (
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00f2fe' }} />
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
                       )}
                     </div>
-                    <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 4px', lineHeight: 1.4 }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px', lineHeight: 1.4 }}>
                       {n.message}
                     </p>
-                    <span style={{ fontSize: '10px', color: '#64748b' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-light)' }}>
                       {new Date(n.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • {new Date(n.createdAt).toLocaleDateString('vi-VN')}
                     </span>
                   </div>

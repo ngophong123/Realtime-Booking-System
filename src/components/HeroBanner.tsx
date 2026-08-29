@@ -1,94 +1,272 @@
-﻿import { Sparkles, Play, Info, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Ticket, Star, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import type { Movie } from '../types';
+import { RippleButton } from './common/RippleButton';
 
 interface HeroBannerProps {
-  movie: Movie | null;
-  onBookNow: () => void;
-  onViewDetail: () => void;
+  movies: Movie[];
+  onBookNow: (movie: Movie) => void;
+  onViewDetail: (movie: Movie) => void;
 }
 
-export const HeroBanner = ({ movie, onBookNow, onViewDetail }: HeroBannerProps) => {
-  if (!movie) return null;
+export const HeroBanner: React.FC<HeroBannerProps> = ({
+  movies,
+  onBookNow,
+  onViewDetail,
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const bannerMovies = movies.slice(0, 5);
+  const currentMovie = bannerMovies[currentIndex] || movies[0];
+
+  useEffect(() => {
+    if (bannerMovies.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % bannerMovies.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [bannerMovies.length]);
+
+  if (!currentMovie) return null;
 
   return (
-    <div 
-      className="glass-panel" 
-      style={{ 
-        position: 'relative', 
-        overflow: 'hidden', 
-        borderRadius: '24px', 
-        marginBottom: '48px', 
-        minHeight: '380px', 
-        display: 'flex', 
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, rgba(18, 22, 31, 0.95), rgba(10, 12, 16, 0.95))',
-        border: '1px solid rgba(0, 242, 254, 0.15)',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)'
-      }}
-    >
-      <div 
-        style={{ 
-          position: 'absolute', 
-          right: 0, 
-          top: 0, 
-          bottom: 0, 
-          width: '55%', 
-          backgroundImage: 'url(' + (movie.posterUrl || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200&q=80') + ')',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: 0.35,
-        }} 
-      />
+    <div style={{ position: 'relative', width: '100%', marginBottom: '24px' }}>
+      {/* Banner Container */}
+      <div
+        style={{
+          width: '100%',
+          height: '420px',
+          borderRadius: 'var(--radius-card)',
+          overflow: 'hidden',
+          position: 'relative',
+          boxShadow: 'var(--shadow-card)',
+          backgroundColor: '#1A1D23',
+        }}
+      >
+        {/* Backdrop Image */}
+        <img
+          src={currentMovie.posterUrl || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1600'}
+          alt={currentMovie.title}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1600&q=80';
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'all 0.6s ease',
+          }}
+        />
 
-      <div style={{ position: 'relative', zIndex: 10, padding: '40px', maxWidth: '650px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0, 242, 254, 0.12)', border: '1px solid rgba(0, 242, 254, 0.3)', color: '#00f2fe', padding: '6px 14px', borderRadius: '30px', fontSize: '12px', fontWeight: '700', marginBottom: '16px' }}>
-          <Sparkles size={14} />
-          <span>PHIM BOM TẤN ĐANG CHIẾU</span>
-        </div>
+        {/* Gradient Overlays for perfect legibility */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(90deg, rgba(26, 29, 35, 0.92) 0%, rgba(26, 29, 35, 0.6) 50%, rgba(26, 29, 35, 0.15) 100%)',
+          }}
+        />
 
-        <h1 style={{ fontSize: '38px', fontWeight: '800', lineHeight: 1.15, color: '#fff', marginBottom: '16px', letterSpacing: '-0.5px' }}>
-          {movie.title}
-        </h1>
+        {/* Content Box */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: '60%',
+            padding: '48px 40px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            color: '#FFFFFF',
+            zIndex: 2,
+          }}
+        >
+          {/* Eyebrow badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <span className="badge-age">T18</span>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                color: '#FFC107',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: '700',
+              }}
+            >
+              <Star size={13} fill="#FFC107" />
+              <span>9.2 ĐÁNH GIÁ</span>
+            </div>
+            <span style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)' }}>
+              • {currentMovie.duration} Phút
+            </span>
+          </div>
 
-        <p style={{ fontSize: '15px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '28px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {movie.description || 'Thưởng thức trải nghiệm rạp phim với hệ thống giữ ghế và đặt vé Realtime Socket.io mượt mà nhất.'}
-        </p>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <button 
-            onClick={onBookNow}
-            className="glow-btn"
-            style={{ padding: '14px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}
-          >
-            <Play size={18} fill="#000" />
-            <span>Mua Vé Ngay</span>
-          </button>
-
-          <button 
-            onClick={onViewDetail}
+          {/* Movie Title */}
+          <h1
             style={{
-              padding: '14px 24px',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#fff',
-              borderRadius: '12px',
-              cursor: 'pointer',
+              fontSize: '36px',
+              fontWeight: '800',
+              margin: '0 0 12px',
+              lineHeight: 1.2,
+              letterSpacing: '-0.5px',
+              textShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
             }}
           >
-            <Info size={18} />
-            <span>Chi Tiết Phim</span>
-          </button>
+            {currentMovie.title}
+          </h1>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
-            <ShieldCheck size={16} color="#00e676" />
-            <span>Giữ chỗ 5 phút</span>
+          {/* Description */}
+          <p
+            style={{
+              fontSize: '14px',
+              lineHeight: 1.6,
+              color: 'rgba(255, 255, 255, 0.85)',
+              margin: '0 0 24px',
+              maxWidth: '480px',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {currentMovie.description ||
+              'Trải nghiệm chất lượng rạp chiếu phim đỉnh cao tại CINEVERSE với công nghệ âm thanh vòm sống động và màn hình sắc nét.'}
+          </p>
+
+          {/* CTAs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <RippleButton
+              onClick={() => onBookNow(currentMovie)}
+              style={{
+                padding: '12px 28px',
+                fontSize: '15px',
+                fontWeight: '700',
+              }}
+            >
+              <Ticket size={18} />
+              <span>ĐẶT VÉ NGAY</span>
+            </RippleButton>
+
+            <button
+              onClick={() => onViewDetail(currentMovie)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: '#FFFFFF',
+                padding: '11px 20px',
+                borderRadius: 'var(--radius-btn)',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)')}
+            >
+              <Info size={16} />
+              <span>Chi Tiết Phim</span>
+            </button>
           </div>
         </div>
+
+        {/* Carousel Navigation Arrows */}
+        {bannerMovies.length > 1 && (
+          <>
+            <button
+              onClick={() =>
+                setCurrentIndex((prev) => (prev - 1 + bannerMovies.length) % bannerMovies.length)
+              }
+              style={{
+                position: 'absolute',
+                left: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 3,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.4)')}
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <button
+              onClick={() => setCurrentIndex((prev) => (prev + 1) % bannerMovies.length)}
+              style={{
+                position: 'absolute',
+                right: '16px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 3,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.4)')}
+            >
+              <ChevronRight size={20} />
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Dots Indicator below banner */}
+      {bannerMovies.length > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '12px',
+          }}
+        >
+          {bannerMovies.map((_, idx) => (
+            <div
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              style={{
+                width: currentIndex === idx ? '24px' : '8px',
+                height: '8px',
+                borderRadius: '4px',
+                backgroundColor: currentIndex === idx ? 'var(--primary)' : '#D1D5DB',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

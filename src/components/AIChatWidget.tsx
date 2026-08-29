@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Bot, X, Send, Sparkles, ChevronRight } from 'lucide-react';
 import type { Movie } from '../types';
 import API from '../services/api';
@@ -25,7 +25,7 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
     {
       id: 'welcome',
       sender: 'bot',
-      text: '👋 **Chào bạn! Mình là CINEVERSE AI Assistant.**\n\nMình có thể giúp bạn tìm phim hay, tra cứu lịch chiếu 24h, săn mã giảm giá hoặc giải đáp chính sách của rạp. Bạn cần mình hỗ trợ gì nào?',
+      text: '👋 **Chào bạn! Mình là CINEVERSE AI Assistant.**\n\nMình có thể giúp bạn tìm phim hay, tra cứu lịch chiếu, săn voucher hoặc giải đáp thắc mắc rạp chiếu. Bạn cần hỗ trợ gì nào?',
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     }
   ]);
@@ -100,10 +100,9 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
     { label: '⏰ Suất chiếu hôm nay', prompt: 'Hôm nay có những suất chiếu nào vậy bot?' },
     { label: '🎁 Mã voucher hôm nay', prompt: 'Hôm nay rạp có những mã giảm giá voucher nào?' },
     { label: '🛡️ Chính sách hủy vé', prompt: 'Chính sách hủy vé của rạp như thế nào?' },
-    { label: '💺 Giá vé & Ghế VIP/Couple', prompt: 'Giá vé và các loại ghế VIP, Ghế đôi của rạp ra sao?' },
   ];
 
-﻿  return (
+  return (
     <>
       {/* Floating Action Button (FAB) */}
       {!isOpen && (
@@ -112,22 +111,21 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
             <div
               onClick={() => setIsOpen(true)}
               style={{
-                background: 'linear-gradient(135deg, #161c28, #0c0f16)',
-                border: '1px solid #00f2fe',
-                borderRadius: '20px',
+                backgroundColor: '#FFFFFF',
+                border: '1.5px solid var(--primary)',
+                borderRadius: 'var(--radius-pill)',
                 padding: '8px 14px',
-                color: '#fff',
+                color: 'var(--text)',
                 fontSize: '12px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                boxShadow: '0 10px 25px rgba(0, 242, 254, 0.3)',
+                boxShadow: 'var(--shadow-dropdown)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                animation: 'bounce 2s infinite',
               }}
             >
-              <Sparkles size={14} color="#00f2fe" />
+              <Sparkles size={14} color="var(--primary)" />
               <span>Hỏi CINEVERSE AI</span>
             </div>
           )}
@@ -135,41 +133,41 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
           <button
             onClick={() => setIsOpen(true)}
             style={{
-              width: '58px',
-              height: '58px',
+              width: '54px',
+              height: '54px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+              backgroundColor: 'var(--primary)',
               border: 'none',
-              color: '#000',
+              color: '#FFFFFF',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 25px rgba(0, 242, 254, 0.6), 0 10px 20px rgba(0, 0, 0, 0.4)',
-              transition: 'all 0.3s ease',
+              boxShadow: '0 6px 18px var(--primary-glow)',
+              transition: 'all 0.2s ease',
             }}
           >
-            <Bot size={28} />
+            <Bot size={26} />
           </button>
         </div>
       )}
 
-      {/* Main Chat Drawer / Window */}
+      {/* Main Chat Drawer */}
       {isOpen && (
         <div
+          className="cine-card animate-fade-in"
           style={{
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            width: '400px',
+            width: '390px',
             maxWidth: 'calc(100vw - 32px)',
-            height: '620px',
+            height: '600px',
             maxHeight: 'calc(100vh - 48px)',
-            background: 'linear-gradient(135deg, #121824 0%, #080b10 100%)',
-            border: '1px solid rgba(0, 242, 254, 0.35)',
-            borderRadius: '24px',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.2)',
-            zIndex: 110,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 'var(--radius-modal)',
+            boxShadow: 'var(--shadow-dropdown)',
+            zIndex: 150,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -181,56 +179,55 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 20px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              background: 'rgba(0, 242, 254, 0.06)',
+              padding: '14px 18px',
+              borderBottom: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-soft)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div
                 style={{
-                  width: '38px',
-                  height: '38px',
+                  width: '34px',
+                  height: '34px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #00f2fe, #4facfe)',
-                  color: '#000',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)',
                 }}
               >
-                <Bot size={22} />
+                <Bot size={20} />
               </div>
               <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>CINEVERSE AI</span>
-                  <span style={{ fontSize: '9px', background: '#00e676', color: '#000', padding: '1px 6px', borderRadius: '8px', fontWeight: '800' }}>ONLINE</span>
+                  <span style={{ fontSize: '10px', backgroundColor: 'var(--success-soft)', color: 'var(--success)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>ONLINE</span>
                 </h3>
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Trợ lý phim &amp; Suất chiếu thông minh</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Trợ lý rạp phim thông minh</span>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#94a3b8',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
                 borderRadius: '50%',
-                width: '32px',
-                height: '32px',
+                width: '30px',
+                height: '30px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
               }}
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
 
           {/* Messages Stream */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: '#FFFFFF' }}>
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -243,15 +240,15 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
                 <div
                   style={{
                     maxWidth: '85%',
-                    padding: '12px 16px',
-                    borderRadius: m.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    background: m.sender === 'user' ? 'linear-gradient(135deg, #00f2fe 0%, #0284c7 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    color: m.sender === 'user' ? '#000' : '#f8fafc',
-                    border: m.sender === 'user' ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '10px 14px',
+                    borderRadius: m.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                    backgroundColor: m.sender === 'user' ? 'var(--primary)' : 'var(--bg-soft)',
+                    color: m.sender === 'user' ? '#FFFFFF' : 'var(--text)',
                     fontSize: '13px',
                     lineHeight: 1.5,
                     fontWeight: m.sender === 'user' ? '600' : '400',
                     whiteSpace: 'pre-wrap',
+                    boxShadow: m.sender === 'user' ? '0 2px 6px var(--primary-glow)' : 'none',
                   }}
                 >
                   {m.text}
@@ -259,57 +256,56 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
 
                 {/* Suggested Movies Action Cards */}
                 {m.suggestedMovies && m.suggestedMovies.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', maxWidth: '90%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', width: '100%', maxWidth: '90%' }}>
                     {m.suggestedMovies.map((movie) => (
                       <div
                         key={movie.id}
                         onClick={() => onSelectMovie(movie)}
+                        className="cine-card cine-card-hover"
                         style={{
-                          background: 'rgba(0, 242, 254, 0.08)',
-                          border: '1px solid rgba(0, 242, 254, 0.3)',
-                          borderRadius: '12px',
-                          padding: '10px 12px',
+                          backgroundColor: 'var(--bg-soft)',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <img
                             src={movie.posterUrl || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=100'}
                             alt={movie.title}
-                            style={{ width: '36px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+                            style={{ width: '34px', height: '46px', objectFit: 'cover', borderRadius: '4px' }}
                           />
                           <div>
-                            <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#fff', margin: '0 0 2px' }}>
+                            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: '0 0 2px' }}>
                               {movie.title}
                             </h4>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                              {movie.duration} phút • {movie.status === 'NOW_SHOWING' ? '🔥 Đang Chiếu' : '⏳ Sắp Chiếu'}
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              {movie.duration} phút
                             </span>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00f2fe', fontSize: '11px', fontWeight: '700' }}>
-                          <span>Xem &amp; Đặt Vé</span>
-                          <ChevronRight size={14} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', color: 'var(--primary)', fontSize: '12px', fontWeight: '700' }}>
+                          <span>Đặt vé</span>
+                          <ChevronRight size={13} />
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <span style={{ fontSize: '10px', color: '#64748b', marginTop: '3px', padding: '0 4px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-light)', marginTop: '2px', padding: '0 4px' }}>
                   {m.timestamp}
                 </span>
               </div>
             ))}
 
             {loading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00f2fe', fontSize: '12px', padding: '6px' }}>
-                <Sparkles size={14} className="animate-spin" />
-                <span>CINEVERSE AI đang soạn câu trả lời...</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontSize: '12px', padding: '4px' }}>
+                <Sparkles size={13} />
+                <span>CINEVERSE AI đang trả lời...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -322,8 +318,8 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
               display: 'flex',
               gap: '6px',
               overflowX: 'auto',
-              borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-              background: 'rgba(0, 0, 0, 0.2)',
+              borderTop: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-soft)',
             }}
           >
             {quickPrompts.map((qp, idx) => (
@@ -333,15 +329,23 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
                 disabled={loading}
                 style={{
                   whiteSpace: 'nowrap',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '16px',
-                  padding: '5px 10px',
-                  color: '#cbd5e1',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '4px 10px',
+                  color: 'var(--text-muted)',
                   fontSize: '11px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.color = 'var(--text-muted)';
                 }}
               >
                 {qp.label}
@@ -349,18 +353,18 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
             ))}
           </div>
 
-          {/* Input Box */}
+          {/* Input Form */}
           <form
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
               handleSendMessage();
             }}
             style={{
-              padding: '12px 16px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              padding: '12px 14px',
+              borderTop: '1px solid var(--border)',
               display: 'flex',
               gap: '8px',
-              background: 'rgba(0, 0, 0, 0.3)',
+              backgroundColor: '#FFFFFF',
             }}
           >
             <input
@@ -369,35 +373,22 @@ export const AIChatWidget = ({ onSelectMovie }: AIChatWidgetProps) => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               disabled={loading}
-              style={{
-                flex: 1,
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: '12px',
-                padding: '10px 14px',
-                color: '#fff',
-                fontSize: '13px',
-                outline: 'none',
-              }}
+              className="cine-input"
+              style={{ fontSize: '13px', padding: '8px 12px' }}
             />
             <button
               type="submit"
               disabled={loading || !inputMessage.trim()}
+              className="btn-primary"
               style={{
-                background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-                border: 'none',
-                color: '#000',
-                borderRadius: '12px',
-                width: '42px',
-                height: '42px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: loading || !inputMessage.trim() ? 'not-allowed' : 'pointer',
-                opacity: loading || !inputMessage.trim() ? 0.5 : 1,
+                borderRadius: 'var(--radius-btn)',
+                width: '38px',
+                height: '38px',
+                padding: 0,
+                flexShrink: 0,
               }}
             >
-              <Send size={16} />
+              <Send size={15} />
             </button>
           </form>
         </div>
