@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { QuickBookingBar } from './components/QuickBookingBar';
 import { MovieCard } from './components/MovieCard';
+import { ShowtimeScheduleSection } from './components/ShowtimeScheduleSection';
 import { SeatMap } from './components/SeatMap';
 import { AuthModal } from './components/AuthModal';
 import { AdminModal } from './components/AdminModal';
@@ -11,6 +12,8 @@ import { MovieRecommendations } from './components/MovieRecommendations';
 import { MyTicketsModal } from './components/MyTicketsModal';
 import { TicketModal } from './components/TicketModal';
 import { ProfileModal } from './components/ProfileModal';
+import { PolicyModal } from './components/PolicyModal';
+import { Footer } from './components/Footer';
 import { AIChatWidget } from './components/AIChatWidget';
 import { TopLoadingBar } from './components/common/TopLoadingBar';
 import { SkeletonCard } from './components/common/SkeletonCard';
@@ -18,21 +21,34 @@ import { SlideInMenu } from './components/common/SlideInMenu';
 import type { Movie, Showtime, User, Room } from './types';
 import API from './services/api';
 import { socket } from './services/socket';
-import { MapPin, Bell } from 'lucide-react';
+import { MapPin, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
+  const [footerData, setFooterData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [movieFilter, setMovieFilter] = useState<'now_showing' | 'coming_soon' | 'all'>('now_showing');
+
+  // Pagination State (8 movies per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+  const movieSectionRef = useRef<HTMLDivElement>(null);
 
   // Selection States
   const [selectedShowtime, setSelectedShowtime] = useState<Showtime | null>(null);
 
+  useEffect(() => {
+    if (selectedShowtime) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [selectedShowtime]);
+
   // Modal & Drawer States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authInitialMessage, setAuthInitialMessage] = useState<string | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
@@ -41,6 +57,10 @@ function App() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [bookingSuccessData, setBookingSuccessData] = useState<any>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
+
+  // Policy Modal States
+  const [isPolicyOpen, setIsPolicyOpen] = useState(false);
+  const [policyType, setPolicyType] = useState<'terms' | 'privacy' | 'care' | 'about'>('terms');
 
   // Realtime Toast Notifications
   const [realtimeToast, setRealtimeToast] = useState<{ id: string; title: string; message: string; type: 'seat_freed' | 'admin_booking' | 'approved' } | null>(null);
@@ -52,6 +72,19 @@ function App() {
     }
 
     fetchInitialData();
+
+    // Global 401 Unauthorized Listener
+    const handleUnauthorized = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message?: string }>;
+      setUser(null);
+      setIsAdminOpen(false);
+      setIsMyTicketsOpen(false);
+      setIsProfileOpen(false);
+      setAuthInitialMessage(customEvent.detail?.message || 'Vui lòng đăng nhập!');
+      setIsAuthOpen(true);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
 
     socket.on('connect', () => setIsSocketConnected(true));
     socket.on('disconnect', () => setIsSocketConnected(false));
@@ -67,6 +100,7 @@ function App() {
     });
 
     return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
       socket.off('connect');
       socket.off('disconnect');
       socket.off('seat:freed');
@@ -76,15 +110,19 @@ function App() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [moviesRes, showtimesRes, roomsRes] = await Promise.all([
+      const [moviesRes, showtimesRes, roomsRes, footerRes] = await Promise.all([
         API.get('/movies'),
         API.get('/showtimes'),
         API.get('/rooms'),
+        API.get('/settings/footer'),
       ]);
 
       setMovies(moviesRes.data.movies || []);
       setShowtimes(showtimesRes.data.showtimes || []);
       setRooms(roomsRes.data.rooms || []);
+      if (footerRes.data.footer) {
+        setFooterData(footerRes.data.footer);
+      }
     } catch (err) {
       console.error('Lỗi nạp dữ liệu ban đầu:', err);
     } finally {
@@ -103,7 +141,9 @@ function App() {
     setIsDetailOpen(true);
   };
 
+  // Refresh data on showtime select
   const handleSelectMovieForBooking = (movie: Movie) => {
+    fetchInitialData();
     const movieShowtimes = showtimes.filter((s) => s.movieId === movie.id);
     if (movieShowtimes.length > 0) {
       setSelectedShowtime(movieShowtimes[0]);
@@ -119,8 +159,53 @@ function App() {
     return true;
   });
 
+  // Paginated movies
+  const totalPages = Math.ceil(filteredMovies.length / itemsPerPage) || 1;
+  const paginatedMovies = filteredMovies.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    if (movieSectionRef.current) {
+      movieSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleOpenPolicyModal = (type: 'terms' | 'privacy' | 'care' | 'about') => {
+    setPolicyType(type);
+    setIsPolicyOpen(true);
+  };
+
+  const getPolicyTitle = () => {
+    switch (policyType) {
+      case 'terms':
+        return 'Điều Khoản Sử Dụng Dịch Vụ CINEVERSE';
+      case 'privacy':
+        return 'Chính Sách Bảo Mật Thông Tin Khách Hàng';
+      case 'care':
+        return 'Quy Trình Chăm Sóc Khách Hàng & Hỗ Trợ 24/7';
+      case 'about':
+        return 'Về Hệ Thống Rạp Chiếu Phim CINEVERSE';
+    }
+  };
+
+  const getPolicyContent = () => {
+    if (!footerData) {
+      return 'Đang tải nội dung chính sách...';
+    }
+    switch (policyType) {
+      case 'terms':
+        return footerData.termsOfService || 'Nội dung điều khoản đang được cập nhật.';
+      case 'privacy':
+        return footerData.privacyPolicy || 'Nội dung chính sách bảo mật đang được cập nhật.';
+      case 'care':
+        return `${footerData.customerCare || 'Liên hệ Hotline 1900 8888 để được hỗ trợ 24/7.'}\n\n- Hotline: ${footerData.hotline || '1900 8888'}\n- Email: ${footerData.email || 'support@cineverse.vn'}`;
+      case 'about':
+        return footerData.aboutUs || 'CINEVERSE - Hệ thống rạp chiếu phim realtime đẳng cấp hàng đầu.';
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', color: 'var(--text)', display: 'flex', flexDirection: 'column' }}>
       {/* Top Progress Bar */}
       <TopLoadingBar isLoading={loading} />
 
@@ -168,7 +253,10 @@ function App() {
       {/* Main Navbar */}
       <Navbar
         user={user}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={() => {
+          setAuthInitialMessage(null);
+          setIsAuthOpen(true);
+        }}
         onLogout={handleLogout}
         onGoHome={() => setSelectedShowtime(null)}
         onOpenAdmin={() => setIsAdminOpen(true)}
@@ -178,6 +266,7 @@ function App() {
         onSelectFilter={(f) => {
           setSelectedShowtime(null);
           setMovieFilter(f);
+          setCurrentPage(1);
         }}
         isSocketConnected={isSocketConnected}
       />
@@ -187,7 +276,10 @@ function App() {
         isOpen={isSlideMenuOpen}
         onClose={() => setIsSlideMenuOpen(false)}
         user={user}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={() => {
+          setAuthInitialMessage(null);
+          setIsAuthOpen(true);
+        }}
         onLogout={handleLogout}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
@@ -195,10 +287,11 @@ function App() {
         onSelectFilter={(f) => {
           setSelectedShowtime(null);
           setMovieFilter(f);
+          setCurrentPage(1);
         }}
       />
 
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 24px 80px' }}>
+      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 24px 80px', flex: 1, width: '100%' }}>
         {selectedShowtime ? (
           <SeatMap
             showtime={selectedShowtime}
@@ -207,7 +300,10 @@ function App() {
               setBookingSuccessData(booking);
               setSelectedShowtime(null);
             }}
-            onRequireAuth={() => setIsAuthOpen(true)}
+            onRequireAuth={() => {
+              setAuthInitialMessage('Vui lòng đăng nhập!');
+              setIsAuthOpen(true);
+            }}
           />
         ) : (
           <div>
@@ -215,8 +311,10 @@ function App() {
             {movies.length > 0 && (
               <HeroBanner
                 movies={movies}
+                showtimes={showtimes}
                 onBookNow={handleSelectMovieForBooking}
                 onViewDetail={handleOpenDetail}
+                onSelectShowtime={(st) => setSelectedShowtime(st)}
               />
             )}
 
@@ -233,8 +331,17 @@ function App() {
             {/* AI Movie Recommendations */}
             <MovieRecommendations onSelectMovie={handleOpenDetail} />
 
+            {/* Full Showtimes Schedule Timeline Section on Home */}
+            <ShowtimeScheduleSection
+              movies={movies}
+              showtimes={showtimes}
+              rooms={rooms}
+              onSelectShowtime={(st) => setSelectedShowtime(st)}
+              onSelectMovieDetail={handleOpenDetail}
+            />
+
             {/* Main Movie Catalog Section */}
-            <div style={{ marginBottom: '60px' }}>
+            <div ref={movieSectionRef} style={{ marginBottom: '40px' }}>
               {/* Category Tabs Header */}
               <div
                 style={{
@@ -250,7 +357,7 @@ function App() {
                 {/* Left: Tab items */}
                 <div style={{ display: 'flex', gap: '32px' }}>
                   <button
-                    onClick={() => setMovieFilter('now_showing')}
+                    onClick={() => { setMovieFilter('now_showing'); setCurrentPage(1); }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -283,7 +390,7 @@ function App() {
                   </button>
 
                   <button
-                    onClick={() => setMovieFilter('coming_soon')}
+                    onClick={() => { setMovieFilter('coming_soon'); setCurrentPage(1); }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -316,7 +423,7 @@ function App() {
                   </button>
 
                   <button
-                    onClick={() => setMovieFilter('all')}
+                    onClick={() => { setMovieFilter('all'); setCurrentPage(1); }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -382,27 +489,111 @@ function App() {
                   Không tìm thấy bộ phim nào trong danh mục này.
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
-                    gap: '24px',
-                  }}
-                >
-                  {filteredMovies.map((movie) => (
-                    <MovieCard
-                      key={movie.id}
-                      movie={movie}
-                      onBookNow={() => handleSelectMovieForBooking(movie)}
-                      onViewDetail={() => handleOpenDetail(movie)}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+                      gap: '24px',
+                    }}
+                  >
+                    {paginatedMovies.map((movie) => (
+                      <MovieCard
+                        key={movie.id}
+                        movie={movie}
+                        onBookNow={() => handleSelectMovieForBooking(movie)}
+                        onViewDetail={() => handleOpenDetail(movie)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Numbered Pagination Buttons */}
+                  {totalPages > 1 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginTop: '40px',
+                      }}
+                    >
+                      <button
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          backgroundColor: '#FFFFFF',
+                          color: currentPage === 1 ? 'var(--text-light)' : 'var(--text)',
+                          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                        const isActive = pageNum === currentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              border: isActive ? '2px solid var(--primary)' : '1px solid var(--border)',
+                              backgroundColor: isActive ? 'var(--primary)' : '#FFFFFF',
+                              color: isActive ? '#FFFFFF' : 'var(--text)',
+                              fontWeight: '800',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: isActive ? '0 4px 10px var(--primary-glow)' : 'none',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          backgroundColor: '#FFFFFF',
+                          color: currentPage === totalPages ? 'var(--text-light)' : 'var(--text)',
+                          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
         )}
       </main>
+
+      {/* Footer & Policies Section */}
+      <Footer onOpenPolicy={handleOpenPolicyModal} footerData={footerData} />
 
       {/* AI Chatbot Assistant Widget */}
       <AIChatWidget onSelectMovie={handleOpenDetail} />
@@ -416,10 +607,15 @@ function App() {
 
       <AuthModal
         isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
+        onClose={() => {
+          setIsAuthOpen(false);
+          setAuthInitialMessage(null);
+        }}
+        initialMessage={authInitialMessage}
         onAuthSuccess={(userData) => {
           setUser(userData);
           setIsAuthOpen(false);
+          setAuthInitialMessage(null);
         }}
       />
 
@@ -442,6 +638,15 @@ function App() {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={user}
+        onUserUpdate={(updated) => setUser(updated)}
+      />
+
+      <PolicyModal
+        isOpen={isPolicyOpen}
+        onClose={() => setIsPolicyOpen(false)}
+        title={getPolicyTitle()}
+        type={policyType}
+        content={getPolicyContent()}
       />
 
       <MovieDetailModal
@@ -454,7 +659,10 @@ function App() {
           setIsDetailOpen(false);
         }}
         user={user}
-        onRequireAuth={() => setIsAuthOpen(true)}
+        onRequireAuth={() => {
+          setAuthInitialMessage('Vui lòng đăng nhập!');
+          setIsAuthOpen(true);
+        }}
         onSelectMovie={handleOpenDetail}
       />
     </div>

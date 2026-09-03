@@ -1,14 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Ticket, Gift, AlertCircle, Info } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, Gift, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import type { Notification, User } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
 
 interface NotificationDropdownProps {
   user: User | null;
+  onOpenMyTickets?: () => void;
+  onOpenProfile?: () => void;
 }
 
-export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
+export const NotificationDropdown = ({
+  user,
+  onOpenMyTickets,
+  onOpenProfile,
+}: NotificationDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +76,20 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
       );
     } catch (err) {
       console.error('Lỗi đánh dấu đã đọc:', err);
+    }
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    if (!n.isRead) {
+      handleMarkAsRead(n.id);
+    }
+    setIsOpen(false);
+
+    // Chuyển hướng tới trang phù hợp với nội dung thông báo
+    if (n.type === 'BOOKING' || n.type === 'APPROVED' || n.type === 'CANCELLED') {
+      if (onOpenMyTickets) onOpenMyTickets();
+    } else if (n.type === 'VOUCHER') {
+      if (onOpenProfile) onOpenProfile();
     }
   };
 
@@ -209,19 +229,21 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   style={{
                     padding: '10px 12px',
                     borderRadius: '8px',
                     marginBottom: '4px',
                     backgroundColor: n.isRead ? 'transparent' : 'var(--primary-soft)',
-                    border: n.isRead ? '1px solid transparent' : '1px solid rgba(255, 122, 26, 0.2)',
+                    border: n.isRead ? '1px solid transparent' : '1px solid var(--primary-glow)',
                     cursor: 'pointer',
                     display: 'flex',
                     gap: '10px',
                     alignItems: 'flex-start',
                     transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.isRead ? 'transparent' : 'var(--primary-soft)')}
                 >
                   <div style={{ marginTop: '2px' }}>{getNotifIcon(n.type)}</div>
                   <div style={{ flex: 1 }}>
@@ -229,9 +251,7 @@ export const NotificationDropdown = ({ user }: NotificationDropdownProps) => {
                       <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: 0 }}>
                         {n.title}
                       </h4>
-                      {!n.isRead && (
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-                      )}
+                      <ExternalLink size={12} color="var(--primary)" />
                     </div>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 4px', lineHeight: 1.4 }}>
                       {n.message}

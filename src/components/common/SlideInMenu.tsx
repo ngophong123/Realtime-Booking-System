@@ -329,7 +329,7 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
                 gap: '10px',
                 padding: '12px 14px',
                 background: 'var(--primary-soft)',
-                border: '1px solid rgba(255, 122, 26, 0.2)',
+                border: '1px solid var(--primary-glow)',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: '700',

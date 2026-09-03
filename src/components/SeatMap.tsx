@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CreditCard, QrCode, Smartphone, Gift, Heart, CheckCircle2, Tag, Check, Zap, Sparkles, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, QrCode, Smartphone, Gift, Heart, CheckCircle2, Tag, Check, Zap, Sparkles, Clock, AlertCircle, Maximize2 } from 'lucide-react';
 import type { Showtime, Seat, PaymentSetting, Voucher } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
@@ -40,10 +40,15 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
 
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'ZALOPAY' | 'VIETQR' | 'ATM'>('MOMO');
+  const [isQrZoomOpen, setIsQrZoomOpen] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSetting | null>(null);
 
   const storedUser = localStorage.getItem('user');
   const currentUser = storedUser ? JSON.parse(storedUser) : null;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
 
   useEffect(() => {
     const fetchShowtimeDetail = async () => {
@@ -66,8 +71,12 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
           });
         }
         setHeldSeats(initialHolds);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Lỗi khi tải thông tin suất chiếu:', err);
+        setErrorMessage('Suất chiếu này đã kết thúc hoặc được rạp điều chỉnh lịch chiếu mới. Hệ thống đang đưa bạn quay lại trang chủ...');
+        setTimeout(() => {
+          onBack();
+        }, 2500);
       } finally {
         setLoading(false);
       }
@@ -81,7 +90,7 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
         .catch((err) => console.error('Lỗi tải voucher của tôi:', err));
     }
 
-    socket.emit('showtime:join', showtime.id);
+    socket.emit('join:showtime', showtime.id);
 
     const onSeatHeld = (data: { showtimeId: string; seatIds: string[]; userId: string }) => {
       if (data.showtimeId === showtime.id) {
@@ -127,7 +136,7 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     socket.on('seat:booked', onSeatBooked);
 
     return () => {
-      socket.emit('showtime:leave', showtime.id);
+      socket.emit('leave:showtime', showtime.id);
       socket.off('seat:held', onSeatHeld);
       socket.off('seat:released', onSeatReleased);
       socket.off('seat:booked', onSeatBooked);
@@ -283,11 +292,15 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
     setErrorMessage(null);
 
     try {
+      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'idemp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
       const res = await API.post('/bookings', {
         showtimeId: showtime.id,
         seatIds: selectedSeatIds,
         paymentMethod,
         voucherCode: appliedVoucher ? appliedVoucher.voucher?.code : null,
+        idempotencyKey,
+      }, {
+        headers: { 'Idempotency-Key': idempotencyKey }
       });
 
       onBookingSuccess(res.data.booking);
@@ -491,7 +504,7 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                 width: '100%',
                 borderRadius: '50%',
                 borderTop: '4px solid var(--primary)',
-                boxShadow: '0 4px 15px rgba(255, 122, 26, 0.25)',
+                boxShadow: '0 4px 15px var(--primary-glow)',
               }}
             />
             <span
@@ -764,7 +777,12 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setPaymentMethod(p.id as any)}
+                    onClick={() => {
+                      setPaymentMethod(p.id as any);
+                      if (p.id !== 'ATM') {
+                        setIsQrZoomOpen(true);
+                      }
+                    }}
                     style={{
                       padding: '8px 10px',
                       borderRadius: '6px',
@@ -786,21 +804,44 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
               })}
             </div>
 
-            {/* QR Code Container */}
+            {/* QR Code Container (Interactive Zoom) */}
             {paymentMethod !== 'ATM' && (
-              <div style={{ backgroundColor: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ backgroundColor: '#FFFFFF', padding: '4px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                  <img src={currentQrUrl} alt="QR Code" style={{ width: '64px', height: '64px', objectFit: 'contain', display: 'block' }} />
+              <div
+                onClick={() => setIsQrZoomOpen(true)}
+                className="cine-card"
+                title="Nhấp để phóng to toàn màn hình"
+                style={{
+                  backgroundColor: 'var(--bg-soft)',
+                  border: '1.5px dashed var(--primary)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{ backgroundColor: '#FFFFFF', padding: '6px', borderRadius: '8px', border: '1px solid var(--border)', position: 'relative' }}>
+                  <img src={currentQrUrl} alt="QR Code" style={{ width: '68px', height: '68px', objectFit: 'contain', display: 'block' }} />
+                  <div style={{ position: 'absolute', bottom: '2px', right: '2px', backgroundColor: 'var(--primary)', color: '#fff', borderRadius: '4px', padding: '2px' }}>
+                    <Maximize2 size={10} />
+                  </div>
                 </div>
-                <div>
-                  <h5 style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text)', margin: '0 0 2px' }}>
-                    Quét Mã {paymentMethod === 'MOMO' ? 'Ví MoMo' : paymentMethod === 'ZALOPAY' ? 'ZaloPay' : 'VietQR Ngân Hàng'}
-                  </h5>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                    Chủ TK: <b>{paymentSettings?.bankAccountName || 'RAP PHIM CINEVERSE'}</b>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <h5 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>
+                      Mã QR {paymentMethod === 'MOMO' ? 'Ví MoMo' : paymentMethod === 'ZALOPAY' ? 'ZaloPay' : 'VietQR'}
+                    </h5>
+                    <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'var(--primary-soft)', padding: '2px 6px', borderRadius: '4px' }}>
+                      Phóng to 🔍
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--text)', margin: '2px 0', fontWeight: '600' }}>
+                    {paymentSettings?.bankAccountName || 'CONG TY CP RAP PHIM CINEVERSE'}
                   </p>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    STK: {paymentSettings?.bankAccountNumber || '190368889999'}
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    STK: <b>{paymentSettings?.bankAccountNumber || '190388889999'}</b>
                   </span>
                 </div>
               </div>
@@ -828,7 +869,88 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
             )}
           </RippleButton>
         </div>
-      </div>
+      
+      {/* FULLSCREEN QR ZOOM MODAL */}
+      {isQrZoomOpen && (
+        <div
+          onClick={() => setIsQrZoomOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 300,
+            padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="cine-card animate-fade-in"
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-modal)',
+              padding: '28px',
+              maxWidth: '420px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: 'var(--shadow-dropdown)',
+              position: 'relative',
+            }}
+          >
+            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text)', margin: '0 0 6px' }}>
+              MÃ QR THANH TOÁN TIỀN VÉ
+            </h3>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block', marginBottom: '16px' }}>
+              Mở ứng dụng Ngân hàng / MoMo / ZaloPay để quét mã
+            </span>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '2px solid var(--primary)',
+                display: 'inline-block',
+                boxShadow: '0 6px 20px var(--primary-glow)',
+                marginBottom: '16px',
+              }}
+            >
+              <img
+                src={currentQrUrl}
+                alt="QR Large"
+                style={{ width: '280px', height: '280px', objectFit: 'contain', display: 'block' }}
+              />
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-soft)', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '13px', textAlign: 'left' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Số tiền:</span>
+                <b style={{ color: 'var(--primary)', fontSize: '15px' }}>{finalPrice.toLocaleString('vi-VN')}đ</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Chủ tài khoản:</span>
+                <b>{paymentSettings?.bankAccountName || 'CONG TY CP RAP PHIM CINEVERSE'}</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Số tài khoản:</span>
+                <b>{paymentSettings?.bankAccountNumber || '190388889999'}</b>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsQrZoomOpen(false)}
+              className="btn-primary"
+              style={{ width: '100%', padding: '10px', fontSize: '13px' }}
+            >
+              Đóng Cửa Sổ QR
+            </button>
+          </div>
+        </div>
+      )}
+</div>
     </div>
   );
 };

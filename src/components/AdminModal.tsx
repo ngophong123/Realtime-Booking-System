@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import {
-  X, Film, Tv, Calendar, Trash2, Edit, DollarSign,
+  X, Film, Check, ScanLine, ShieldAlert, History, FileText, Tv, Calendar, Trash2, Edit, DollarSign,
   Gift, QrCode, CheckCircle2, UserCheck, Mail, Send, AlertCircle
 } from 'lucide-react';
 import type { Movie, Room, Showtime, Voucher, Booking, User, EmailSetting } from '../types';
@@ -24,7 +24,7 @@ export const AdminModal = ({
   showtimes,
   onRefreshData,
 }: AdminModalProps) => {
-  const [activeTab, setActiveTab] = useState<'movies' | 'rooms' | 'showtimes' | 'vouchers' | 'payments' | 'emails' | 'stats'>('movies');
+  const [activeTab, setActiveTab] = useState<'movies' | 'rooms' | 'showtimes' | 'vouchers' | 'payments' | 'emails' | 'stats' | 'footer' | 'checkin' | 'logs'>('movies');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Users for gifting vouchers
@@ -67,16 +67,25 @@ export const AdminModal = ({
 
   // Voucher State & Gift State
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [testEmailInput, setTestEmailInput] = useState('');
+  const [checkinCode, setCheckinCode] = useState('');
+  const [checkinResult, setCheckinResult] = useState<any>(null);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [paymentLogs, setPaymentLogs] = useState<any[]>([]);
   const [voucherForm, setVoucherForm] = useState({
     code: '',
     discountType: 'percent' as 'percent' | 'amount',
     discountValue: 10,
     minOrderAmount: 0,
+    issueDate: new Date().toISOString().split('T')[0],
     expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    targetUserId: '',
     usageLimit: 100,
   });
   const [giftUserId, setGiftUserId] = useState('');
   const [giftDiscountAmount, setGiftDiscountAmount] = useState(50000);
+    const [giftIssueDate, setGiftIssueDate] = useState(new Date().toISOString().split('T')[0]);
+    const [giftExpireAt, setGiftExpireAt] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
   // Payment Settings Form State
   const [paymentForm, setPaymentForm] = useState({
@@ -100,6 +109,21 @@ export const AdminModal = ({
   // Bookings & Stats
   const [bookings, setBookings] = useState<Booking[]>([]);
 
+  // Footer & Policy Settings State
+  const [footerForm, setFooterForm] = useState({
+    termsOfService: '',
+    privacyPolicy: '',
+    customerCare: '',
+    aboutUs: '',
+    hotline: '1900 8888',
+    email: 'support@cineverse.vn',
+    socialFacebook: 'https://facebook.com/cineverse',
+    socialYoutube: 'https://youtube.com/cineverse',
+    socialZalo: 'https://zalo.me/cineverse',
+    cancellationCutoffHours: 12,
+  });
+
+
   useEffect(() => {
     if (isOpen) {
       fetchAdminData();
@@ -108,17 +132,22 @@ export const AdminModal = ({
 
   const fetchAdminData = async () => {
     try {
-      const [vouchersRes, bookingsRes, usersRes, paymentRes, emailRes] = await Promise.all([
-        API.get('/vouchers'),
-        API.get('/bookings'),
-        API.get('/auth/users'),
-        API.get('/payments/settings'),
-        API.get('/settings/email'),
+      const [vouchersRes, bookingsRes, usersRes, paymentRes, emailRes, footerRes, logsRes] = await Promise.all([
+        API.get('/vouchers').catch(() => ({ data: { vouchers: [] } })),
+        API.get('/bookings').catch(() => ({ data: { bookings: [] } })),
+        API.get('/auth/users').catch(() => ({ data: { users: [] } })),
+        API.get('/payments/settings').catch(() => ({ data: { settings: null } })),
+        API.get('/settings/email').catch(() => ({ data: { setting: null } })),
+        API.get('/settings/footer').catch(() => ({ data: { footer: null } })),
+        API.get('/payments/logs').catch(() => ({ data: { logs: [] } })),
       ]);
-      setVouchers(vouchersRes.data.vouchers || []);
-      setBookings(bookingsRes.data.bookings || []);
-      setUsers(usersRes.data.users || []);
-      if (paymentRes.data.settings) {
+
+      if (vouchersRes.data?.vouchers) setVouchers(vouchersRes.data.vouchers);
+      if (bookingsRes.data?.bookings) setBookings(bookingsRes.data.bookings);
+      if (usersRes.data?.users) setUsers(usersRes.data.users);
+      if (logsRes.data?.logs) setPaymentLogs(logsRes.data.logs);
+
+      if (paymentRes.data?.settings) {
         setPaymentForm({
           momoQrUrl: paymentRes.data.settings.momoQrUrl || '',
           vietQrUrl: paymentRes.data.settings.vietQrUrl || '',
@@ -128,12 +157,26 @@ export const AdminModal = ({
           bankName: paymentRes.data.settings.bankName || '',
         });
       }
-      if (emailRes.data.setting) {
+      if (emailRes.data?.setting) {
         setEmailForm({
           smtpEmail: emailRes.data.setting.smtpEmail || '',
           smtpPassword: emailRes.data.setting.smtpPassword || '',
           senderName: emailRes.data.setting.senderName || 'CINEVERSE Cinema',
           adminEmail: emailRes.data.setting.adminEmail || '',
+        });
+      }
+      if (footerRes.data?.footer) {
+        setFooterForm({
+          termsOfService: footerRes.data.footer.termsOfService || '',
+          privacyPolicy: footerRes.data.footer.privacyPolicy || '',
+          customerCare: footerRes.data.footer.customerCare || '',
+          aboutUs: footerRes.data.footer.aboutUs || '',
+          hotline: footerRes.data.footer.hotline || '1900 8888',
+          email: footerRes.data.footer.email || 'support@cineverse.vn',
+          socialFacebook: footerRes.data.footer.socialFacebook || '',
+          socialYoutube: footerRes.data.footer.socialYoutube || '',
+          socialZalo: footerRes.data.footer.socialZalo || '',
+          cancellationCutoffHours: footerRes.data.footer.cancellationCutoffHours !== undefined ? footerRes.data.footer.cancellationCutoffHours : 12,
         });
       }
     } catch (err: any) {
@@ -142,6 +185,39 @@ export const AdminModal = ({
   };
 
   // 1. Movie Handlers
+  
+  const handleToggleMovieStatus = async (movie: Movie) => {
+    try {
+      const nextStatus = movie.status === 'NOW_SHOWING' ? 'COMING_SOON' : 'NOW_SHOWING';
+      await API.put(`/movies/${movie.id}`, { status: nextStatus });
+      setMessage({ type: 'success', text: `Đã chuyển phim "${movie.title}" sang "${nextStatus === 'NOW_SHOWING' ? 'Đang Chiếu' : 'Sắp Chiếu'}"!` });
+      onRefreshData();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể đổi trạng thái phim!' });
+    }
+  };
+
+
+
+  const handleCheckInSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!checkinCode.trim()) return;
+    try {
+      setCheckinLoading(true);
+      setCheckinResult(null);
+      const res = await API.post('/tickets/verify-checkin', { bookingId: checkinCode.trim() });
+      setCheckinResult(res.data);
+      setMessage({ type: 'success', text: res.data.message });
+      fetchAdminData();
+    } catch (err: any) {
+      const data = err.response?.data;
+      setCheckinResult(data || { success: false, message: 'Lỗi kiểm tra vé!' });
+      setMessage({ type: 'error', text: data?.message || 'Vé không hợp lệ!' });
+    } finally {
+      setCheckinLoading(false);
+    }
+  };
+
   const handleCreateOrUpdateMovie = async (e: FormEvent) => {
     e.preventDefault();
     try {
@@ -294,25 +370,26 @@ export const AdminModal = ({
   };
 
   const handleGiftVoucher = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!giftUserId) {
-      alert('Vui lòng chọn khách hàng muốn tặng Voucher!');
-      return;
-    }
-    try {
-      await API.post('/vouchers/gift', {
-        targetUserId: giftUserId,
-        voucherData: {
-          discountAmount: giftDiscountAmount,
-          expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }
-      });
-      setMessage({ type: 'success', text: 'Đã gửi tặng Voucher vào ví và gửi email thông báo cho khách thành công!' });
-      fetchAdminData();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể tặng voucher!' });
-    }
-  };
+      e.preventDefault();
+      if (!giftUserId) {
+        alert('Vui lòng chọn khách hàng muốn tặng Voucher!');
+        return;
+      }
+      try {
+        await API.post('/vouchers/gift', {
+          targetUserId: giftUserId,
+          voucherData: {
+            discountAmount: giftDiscountAmount,
+            issueDate: giftIssueDate,
+            expireAt: giftExpireAt,
+          }
+        });
+        setMessage({ type: 'success', text: 'Đã gửi tặng Voucher vào ví và gửi email thông báo cho khách thành công!' });
+        fetchAdminData();
+      } catch (err: any) {
+        setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể tặng voucher!' });
+      }
+    };
 
   const handleDeleteVoucher = async (id: string) => {
     if (!window.confirm('Bạn có chắc muốn xóa hoặc thu hồi Voucher này?')) return;
@@ -350,16 +427,22 @@ export const AdminModal = ({
   };
 
   const handleSendTestEmail = async () => {
-    setTestEmailLoading(true);
-    try {
-      const res = await API.post('/settings/test-email', { targetEmail: emailForm.adminEmail || emailForm.smtpEmail });
-      setMessage({ type: 'success', text: res.data.message || 'Đã gửi email kiểm tra thành công!' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể gửi email kiểm tra!' });
-    } finally {
-      setTestEmailLoading(false);
-    }
-  };
+      setTestEmailLoading(true);
+      try {
+        const target = testEmailInput.trim() || emailForm.adminEmail || emailForm.smtpEmail;
+        if (!target) {
+          setMessage({ type: 'error', text: 'Vui lòng nhập email nhận thư thử nghiệm!' });
+          setTestEmailLoading(false);
+          return;
+        }
+        const res = await API.post('/settings/email/test', { targetEmail: target });
+        setMessage({ type: 'success', text: res.data.message || 'Đã gửi email kiểm tra thành công!' });
+      } catch (err: any) {
+        setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể gửi email kiểm tra. Hãy kiểm tra lại Gmail App Password!' });
+      } finally {
+        setTestEmailLoading(false);
+      }
+    };
 
   // 8. Approve Booking Handler
   const handleApproveBooking = async (bookingId: string) => {
@@ -369,6 +452,18 @@ export const AdminModal = ({
       fetchAdminData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể duyệt đơn vé!' });
+    }
+  };
+
+  
+  const handleSaveFooterSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await API.put('/settings/footer', footerForm);
+      setMessage({ type: 'success', text: 'Cập nhật Điều khoản & Chính sách Footer thành công!' });
+      fetchAdminData();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể lưu chính sách footer!' });
     }
   };
 
@@ -467,6 +562,9 @@ export const AdminModal = ({
                 { id: 'payments', label: 'Cấu Hình Mã QR', icon: QrCode },
                 { id: 'emails', label: 'Cấu Hình Email Google', icon: Mail },
                 { id: 'stats', label: 'Đơn Vé & Duyệt Vé', icon: DollarSign, count: bookings.length },
+                { id: 'footer', label: 'Chính Sách & Footer', icon: FileText },
+                { id: 'checkin', label: 'Soát Vé Tại Quầy', icon: ScanLine },
+                { id: 'logs', label: 'Audit Logs Giao Dịch', icon: History, count: paymentLogs.length },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -540,6 +638,9 @@ export const AdminModal = ({
               {activeTab === 'payments' && 'Cấu Hình Tài Khoản Thanh Toán QR'}
               {activeTab === 'emails' && 'Cấu Hình Gmail SMTP Gửi Thư Thật'}
               {activeTab === 'stats' && 'Danh Sách Đơn Vé & Duyệt Vé Realtime'}
+              {activeTab === 'footer' && 'Quản Lý Chính Sách, Điều Khoản & Footer'}
+              {activeTab === 'checkin' && 'Soát Vé & Check-in Điện Tử Tại Quầy'}
+              {activeTab === 'logs' && 'Nhật Ký Giao Dịch & Tra Soát An Toàn (Audit Trail)'}
             </h2>
 
             <button
@@ -610,9 +711,24 @@ export const AdminModal = ({
                               {m.duration} phút • {new Date(m.releaseDate).toLocaleDateString('vi-VN')}
                             </span>
                             <div style={{ marginTop: '2px' }}>
-                              <span className={`badge-status ${m.status === 'NOW_SHOWING' ? 'badge-primary' : 'badge-secondary'}`}>
-                                {m.status === 'NOW_SHOWING' ? '🔥 Đang Chiếu' : '⏳ Sắp Chiếu'}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleMovieStatus(m)}
+                                className="btn-outline"
+                                title="Nhấp để đổi nhanh trạng thái chiếu"
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  borderRadius: '4px',
+                                  borderColor: m.status === 'NOW_SHOWING' ? 'var(--primary)' : 'var(--secondary)',
+                                  backgroundColor: m.status === 'NOW_SHOWING' ? 'var(--primary-soft)' : 'var(--secondary-soft)',
+                                  color: m.status === 'NOW_SHOWING' ? 'var(--primary)' : 'var(--secondary)',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {m.status === 'NOW_SHOWING' ? '🔥 ĐANG CHIẾU' : '⏳ SẮP CHIẾU'} ⇄
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -934,7 +1050,7 @@ export const AdminModal = ({
                             )}
                           </div>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Đơn tối thiểu: {Number(v.minOrderAmount).toLocaleString('vi-VN')}đ • HSD: {new Date(v.expireAt).toLocaleDateString('vi-VN')} • Đã dùng: {v.usedCount}/{v.usageLimit}
+                            📅 Phát hành: {new Date(v.issueDate || v.createdAt || Date.now()).toLocaleDateString('vi-VN')} • ⏳ Hết hạn: {new Date(v.expireAt).toLocaleDateString('vi-VN')} • Đơn tối thiểu: {Number(v.minOrderAmount).toLocaleString('vi-VN')}đ • Đã dùng: {v.usedCount}/{v.usageLimit}
                           </span>
                         </div>
                         <button onClick={() => handleDeleteVoucher(v.id)} className="btn-outline" style={{ padding: '6px 10px', borderColor: 'var(--danger)', color: 'var(--danger)' }}>
@@ -949,44 +1065,245 @@ export const AdminModal = ({
                   {/* Gift Voucher to User */}
                   <div className="cine-card" style={{ backgroundColor: '#FFFFFF', padding: '18px' }}>
                     <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <UserCheck size={16} /> 🎁 Tặng Voucher &amp; Gửi Email Cho Khách
+                      <UserCheck size={16} /> 🎁 Tặng Voucher Cá Nhân &amp; Gửi Email
                     </h4>
-                    <form onSubmit={handleGiftVoucher} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <select value={giftUserId} onChange={(e) => setGiftUserId(e.target.value)} required className="cine-input">
-                        <option value="">-- Chọn Khách Hàng Nhận Quà --</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                      </select>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <input type="number" step="10000" placeholder="Số tiền giảm (VNĐ)" value={giftDiscountAmount} onChange={(e) => setGiftDiscountAmount(Number(e.target.value))} required className="cine-input" />
-                        <RippleButton type="submit" style={{ fontSize: '12px', padding: '8px' }}>
-                          GỬI TẶNG NGAY
-                        </RippleButton>
+                    <form onSubmit={handleGiftVoucher} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                          👤 Khách Hàng Nhận Quà *
+                        </label>
+                        <select value={giftUserId} onChange={(e) => setGiftUserId(e.target.value)} required className="cine-input">
+                          <option value="">-- Chọn Khách Hàng Nhận Quà --</option>
+                          {users.map((u) => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                          ))}
+                        </select>
                       </div>
+
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                          💰 Mức Tiền Giảm (VNĐ) *
+                        </label>
+                        <input
+                          type="number"
+                          step="10000"
+                          placeholder="Số tiền giảm (VNĐ)"
+                          value={giftDiscountAmount}
+                          onChange={(e) => setGiftDiscountAmount(Number(e.target.value))}
+                          required
+                          className="cine-input"
+                        />
+                      </div>
+
+                      {/* Admin Controls Expiration Date for Gift Voucher */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', backgroundColor: 'var(--bg-soft)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '2px' }}>
+                            📅 Ngày Bắt Đầu
+                          </label>
+                          <input
+                            type="date"
+                            value={giftIssueDate}
+                            onChange={(e) => setGiftIssueDate(e.target.value)}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--danger)', display: 'block', marginBottom: '2px' }}>
+                            ⏳ Ngày Hết Hạn *
+                          </label>
+                          <input
+                            type="date"
+                            value={giftExpireAt}
+                            onChange={(e) => setGiftExpireAt(e.target.value)}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Presets for Gift Voucher */}
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>Hạn dùng:</span>
+                        {[
+                          { label: '7 Ngày', days: 7 },
+                          { label: '14 Ngày', days: 14 },
+                          { label: '30 Ngày (1 Tháng)', days: 30 },
+                          { label: '90 Ngày (3 Tháng)', days: 90 },
+                          { label: '1 Năm', days: 365 },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => {
+                              const d = new Date();
+                              d.setDate(d.getDate() + p.days);
+                              setGiftExpireAt(d.toISOString().split('T')[0]);
+                            }}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border)',
+                              backgroundColor: '#FFFFFF',
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              color: 'var(--primary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <RippleButton type="submit" style={{ fontSize: '13px', padding: '9px', marginTop: '4px' }}>
+                        🎁 GỬI TẶNG VOUCHER &amp; GỬI EMAIL THÔNG BÁO
+                      </RippleButton>
                     </form>
                   </div>
 
-                  {/* Create General Voucher */}
+                  {/* Create General / Public Voucher */}
                   <div className="cine-card" style={{ backgroundColor: '#FFFFFF', padding: '18px' }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', marginBottom: '10px' }}>
-                      + Phát Hành Mã Voucher Chung
+                    <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Gift size={16} /> + Phát Hành Mã Voucher Chung
                     </h4>
                     <form onSubmit={handleCreateVoucher} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <input type="text" placeholder="MÃ VOUCHER (VD: CINEVERSE2026)" value={voucherForm.code} onChange={(e) => setVoucherForm({ ...voucherForm, code: e.target.value.toUpperCase() })} required className="cine-input" style={{ fontWeight: '700' }} />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <select value={voucherForm.discountType} onChange={(e) => setVoucherForm({ ...voucherForm, discountType: e.target.value as any })} className="cine-input">
-                          <option value="percent">Giảm theo %</option>
-                          <option value="amount">Giảm tiền mặt (VNĐ)</option>
-                        </select>
-                        <input type="number" placeholder="Giá trị" value={voucherForm.discountValue} onChange={(e) => setVoucherForm({ ...voucherForm, discountValue: Number(e.target.value) })} required className="cine-input" />
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                          🏷️ Mã Voucher * (Ví dụ: CINEVERSE2026, VIP50K)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="MÃ VOUCHER..."
+                          value={voucherForm.code}
+                          onChange={(e) => setVoucherForm({ ...voucherForm, code: e.target.value.toUpperCase() })}
+                          required
+                          className="cine-input"
+                          style={{ fontWeight: '800', letterSpacing: '1px' }}
+                        />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <input type="date" value={voucherForm.expireAt} onChange={(e) => setVoucherForm({ ...voucherForm, expireAt: e.target.value })} required className="cine-input" />
-                        <input type="number" placeholder="Số lượt dùng" value={voucherForm.usageLimit} onChange={(e) => setVoucherForm({ ...voucherForm, usageLimit: Number(e.target.value) })} required className="cine-input" />
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                            Loại Giảm Giá
+                          </label>
+                          <select
+                            value={voucherForm.discountType}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, discountType: e.target.value as any })}
+                            className="cine-input"
+                          >
+                            <option value="percent">Giảm theo %</option>
+                            <option value="amount">Giảm tiền mặt (VNĐ)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                            Mức Giảm *
+                          </label>
+                          <input
+                            type="number"
+                            placeholder={voucherForm.discountType === 'percent' ? '10%' : '50000'}
+                            value={voucherForm.discountValue}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, discountValue: Number(e.target.value) })}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
                       </div>
-                      <RippleButton type="submit" style={{ padding: '9px', fontSize: '13px' }}>
-                        LƯU &amp; PHÁT HÀNH
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', backgroundColor: 'var(--bg-soft)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '2px' }}>
+                            📅 Ngày Bắt Đầu *
+                          </label>
+                          <input
+                            type="date"
+                            value={voucherForm.issueDate}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, issueDate: e.target.value })}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '800', color: 'var(--danger)', display: 'block', marginBottom: '2px' }}>
+                            ⏳ Ngày Hết Hạn *
+                          </label>
+                          <input
+                            type="date"
+                            value={voucherForm.expireAt}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, expireAt: e.target.value })}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Presets for General Voucher */}
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700' }}>Hạn dùng:</span>
+                        {[
+                          { label: '7 Ngày', days: 7 },
+                          { label: '14 Ngày', days: 14 },
+                          { label: '30 Ngày (1 Tháng)', days: 30 },
+                          { label: '90 Ngày (3 Tháng)', days: 90 },
+                          { label: '1 Năm', days: 365 },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => {
+                              const d = new Date();
+                              d.setDate(d.getDate() + p.days);
+                              setVoucherForm({ ...voucherForm, expireAt: d.toISOString().split('T')[0] });
+                            }}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border)',
+                              backgroundColor: '#FFFFFF',
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              color: 'var(--primary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                            Đơn Tối Thiểu (VNĐ)
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="0đ"
+                            value={voucherForm.minOrderAmount}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, minOrderAmount: Number(e.target.value) })}
+                            className="cine-input"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
+                            Số Lượt Dùng
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="100"
+                            value={voucherForm.usageLimit}
+                            onChange={(e) => setVoucherForm({ ...voucherForm, usageLimit: Number(e.target.value) })}
+                            required
+                            className="cine-input"
+                          />
+                        </div>
+                      </div>
+
+                      <RippleButton type="submit" style={{ padding: '10px', fontSize: '13px', marginTop: '4px' }}>
+                        LƯU &amp; PHÁT HÀNH VOUCHER
                       </RippleButton>
                     </form>
                   </div>
@@ -1066,14 +1383,34 @@ export const AdminModal = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                    <RippleButton type="submit" style={{ flex: 1, padding: '12px' }}>
+                  <RippleButton type="submit" style={{ width: '100%', padding: '12px', marginTop: '6px' }}>
                       LƯU CẤU HÌNH EMAIL
                     </RippleButton>
-                    <button type="button" onClick={handleSendTestEmail} disabled={testEmailLoading} className="btn-outline" style={{ padding: '12px 18px', whiteSpace: 'nowrap' }}>
-                      <Send size={14} /> {testEmailLoading ? 'Đang gửi...' : 'Gửi Thử Email'}
-                    </button>
-                  </div>
+
+                    <div style={{ marginTop: '20px', borderTop: '1px dashed var(--border)', paddingTop: '16px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)', display: 'block', marginBottom: '6px' }}>
+                        🧪 Gửi Thử Nghiệm Kết Nối Email
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="email"
+                          placeholder="Nhập email nhận thử (để trống sẽ gửi tới Email Admin)..."
+                          value={testEmailInput}
+                          onChange={(e) => setTestEmailInput(e.target.value)}
+                          className="cine-input"
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendTestEmail}
+                          disabled={testEmailLoading}
+                          className="btn-outline"
+                          style={{ padding: '10px 18px', whiteSpace: 'nowrap', fontWeight: '700' }}
+                        >
+                          <Send size={14} /> {testEmailLoading ? 'Đang gửi...' : 'Gửi Thử'}
+                        </button>
+                      </div>
+                    </div>
                 </form>
               </div>
             )}
@@ -1156,7 +1493,231 @@ export const AdminModal = ({
                 </div>
               </div>
             )}
-          </div>
+          
+            {/* TAB 8: FOOTER & POLICIES */}
+            {activeTab === 'footer' && (
+              <div className="cine-card" style={{ maxWidth: '780px', margin: '0 auto', backgroundColor: '#FFFFFF', padding: '24px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={18} /> Quản Lý Nội Dung Chính Sách &amp; Chăm Sóc Khách Hàng
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '18px' }}>
+                  Nội dung điều khoản, chính sách bảo mật và thông tin liên hệ được cấu hình tại đây sẽ tự động hiển thị ở chân trang web.
+                </p>
+
+                <form onSubmit={handleSaveFooterSettings} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      1. Điều Khoản Sử Dụng
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={footerForm.termsOfService}
+                      onChange={(e) => setFooterForm({ ...footerForm, termsOfService: e.target.value })}
+                      className="cine-input"
+                      placeholder="Nhập điều khoản sử dụng dịch vụ..."
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      2. Chính Sách Bảo Mật Thông Tin
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={footerForm.privacyPolicy}
+                      onChange={(e) => setFooterForm({ ...footerForm, privacyPolicy: e.target.value })}
+                      className="cine-input"
+                      placeholder="Nhập chính sách bảo mật thông tin khách hàng..."
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      3. Quy Trình Chăm Sóc Khách Hàng &amp; Hỗ Trợ
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={footerForm.customerCare}
+                      onChange={(e) => setFooterForm({ ...footerForm, customerCare: e.target.value })}
+                      className="cine-input"
+                      placeholder="Nhập quy trình hỗ trợ khách hàng..."
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        Hotline Chăm Sóc Khách Hàng
+                      </label>
+                      <input
+                        type="text"
+                        value={footerForm.hotline}
+                        onChange={(e) => setFooterForm({ ...footerForm, hotline: e.target.value })}
+                        className="cine-input"
+                        placeholder="1900 8888"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        Email Tiếp Nhận Hỗ Trợ
+                      </label>
+                      <input
+                        type="email"
+                        value={footerForm.email}
+                        onChange={(e) => setFooterForm({ ...footerForm, email: e.target.value })}
+                        className="cine-input"
+                        placeholder="support@cineverse.vn"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        Link Facebook
+                      </label>
+                      <input
+                        type="text"
+                        value={footerForm.socialFacebook}
+                        onChange={(e) => setFooterForm({ ...footerForm, socialFacebook: e.target.value })}
+                        className="cine-input"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        Link Youtube
+                      </label>
+                      <input
+                        type="text"
+                        value={footerForm.socialYoutube}
+                        onChange={(e) => setFooterForm({ ...footerForm, socialYoutube: e.target.value })}
+                        className="cine-input"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                        Link Zalo
+                      </label>
+                      <input
+                        type="text"
+                        value={footerForm.socialZalo}
+                        onChange={(e) => setFooterForm({ ...footerForm, socialZalo: e.target.value })}
+                        className="cine-input"
+                      />
+                    </div>
+                  </div>
+
+                  <RippleButton type="submit" style={{ padding: '12px', marginTop: '6px' }}>
+                    LƯU CHÍNH SÁCH &amp; FOOTER
+                  </RippleButton>
+                </form>
+              </div>
+            )}
+
+            {/* TAB 9: CHECKIN AT COUNTER */}
+            {activeTab === 'checkin' && (
+              <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+                <div className="cine-card" style={{ backgroundColor: '#FFFFFF', padding: '24px', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ScanLine size={18} /> Quét &amp; Soát Vé Khách Hàng Vào Rạp
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    Nhập mã đơn vé (VD: <code style={{ color: 'var(--primary)', fontWeight: '700' }}>834EA455...</code>) hoặc quét mã QR trên vé của khách để kiểm tra và đánh dấu đã vào phòng chiếu.
+                  </p>
+
+                  <form onSubmit={handleCheckInSubmit} style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Nhập mã đơn vé hoặc dán mã QR..."
+                      value={checkinCode}
+                      onChange={(e) => setCheckinCode(e.target.value)}
+                      className="cine-input"
+                      style={{ flex: 1, fontSize: '14px', fontWeight: '700' }}
+                      required
+                    />
+                    <RippleButton type="submit" loading={checkinLoading} loadingText="Đang Soát..." style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}>
+                      SOÁT VÉ
+                    </RippleButton>
+                  </form>
+                </div>
+
+                {checkinResult && (
+                  <div
+                    className="cine-card animate-fade-in"
+                    style={{
+                      backgroundColor: checkinResult.success ? 'var(--success-soft)' : 'var(--danger-soft)',
+                      border: `2px solid ${checkinResult.success ? 'var(--success)' : 'var(--danger)'}`,
+                      padding: '20px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                      {checkinResult.success ? (
+                        <Check size={24} color="var(--success)" />
+                      ) : (
+                        <ShieldAlert size={24} color="var(--danger)" />
+                      )}
+                      <h4 style={{ fontSize: '16px', fontWeight: '800', color: checkinResult.success ? 'var(--success)' : 'var(--danger)', margin: 0 }}>
+                        {checkinResult.message}
+                      </h4>
+                    </div>
+
+                    {checkinResult.booking && (
+                      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', padding: '14px', marginTop: '12px', fontSize: '13px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <div><b>Phim:</b> {checkinResult.booking.showtime?.movie?.title}</div>
+                          <div><b>Phòng:</b> {checkinResult.booking.showtime?.room?.name}</div>
+                          <div><b>Khách hàng:</b> {checkinResult.booking.user?.name}</div>
+                          <div><b>Suất chiếu:</b> {new Date(checkinResult.booking.showtime?.startTime).toLocaleString('vi-VN')}</div>
+                          <div><b>Trạng thái check-in:</b> <span style={{ color: checkinResult.booking.isCheckedIn ? 'var(--success)' : 'var(--warning)', fontWeight: '800' }}>{checkinResult.booking.isCheckedIn ? 'ĐÃ CHECK-IN' : 'CHƯA CHECK-IN'}</span></div>
+                          {checkinResult.booking.checkInAt && <div><b>Thời gian:</b> {new Date(checkinResult.booking.checkInAt).toLocaleString('vi-VN')}</div>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 10: AUDIT LOGS */}
+            {activeTab === 'logs' && (
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text)', marginBottom: '12px' }}>
+                  Lịch Sử Giao Dịch &amp; Audit Trail ({paymentLogs.length} bản ghi)
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '520px', overflowY: 'auto' }}>
+                  {paymentLogs.length === 0 ? (
+                    <div className="cine-card" style={{ backgroundColor: '#FFFFFF', padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Chưa có nhật ký giao dịch nào được ghi nhận.
+                    </div>
+                  ) : (
+                    paymentLogs.map((log) => (
+                      <div key={log.id} className="cine-card" style={{ backgroundColor: '#FFFFFF', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text)' }}>
+                              #{log.orderId ? log.orderId.slice(0, 8).toUpperCase() : 'N/A'}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', backgroundColor: log.isVerified ? 'var(--success-soft)' : 'var(--danger-soft)', color: log.isVerified ? 'var(--success)' : 'var(--danger)' }}>
+                              {log.statusAfter}
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
+                              {Number(log.amount || 0).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Khách: {log.user?.name || 'Khách'} ({log.user?.email || 'N/A'}) • IP: {log.ipAddress || '127.0.0.1'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-light)' }}>
+                          {new Date(log.createdAt).toLocaleString('vi-VN')}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+</div>
         </div>
       </div>
     </div>

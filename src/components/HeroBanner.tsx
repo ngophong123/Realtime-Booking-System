@@ -3,16 +3,22 @@ import { Ticket, Star, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import type { Movie } from '../types';
 import { RippleButton } from './common/RippleButton';
 
+import type { Showtime } from '../types';
+
 interface HeroBannerProps {
   movies: Movie[];
+  showtimes?: Showtime[];
   onBookNow: (movie: Movie) => void;
   onViewDetail: (movie: Movie) => void;
+  onSelectShowtime?: (showtime: Showtime) => void;
 }
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({
   movies,
+  showtimes = [],
   onBookNow,
   onViewDetail,
+  onSelectShowtime,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -139,6 +145,48 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             {currentMovie.description ||
               'Trải nghiệm chất lượng rạp chiếu phim đỉnh cao tại CINEVERSE với công nghệ âm thanh vòm sống động và màn hình sắc nét.'}
           </p>
+
+          
+          {/* Upcoming Showtimes for Current Banner Movie */}
+          {(() => {
+            const currentMovieShowtimes = showtimes.filter((s) => s.movieId === currentMovie.id);
+            if (currentMovieShowtimes.length === 0) return null;
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'rgba(255, 255, 255, 0.9)' }}>
+                  🎬 Suất chiếu hôm nay:
+                </span>
+                {currentMovieShowtimes.slice(0, 4).map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => onSelectShowtime ? onSelectShowtime(st) : onBookNow(currentMovie)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                      backdropFilter: 'blur(4px)',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span style={{ color: '#00e676' }}>
+                      {new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </span>
+                    <span style={{ fontSize: '9px', padding: '1px 3px', borderRadius: '3px', backgroundColor: 'var(--primary)', color: '#fff' }}>
+                      {st.room?.type || 'STD'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>

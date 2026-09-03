@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { X, Mail, Lock, User, ShieldAlert, Film } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { X, Mail, Lock, User, ShieldAlert, Film, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import type { User as UserType } from '../types';
 import API from '../services/api';
 import { RippleButton } from './common/RippleButton';
@@ -8,21 +8,36 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthSuccess: (user: UserType) => void;
+  initialMessage?: string | null;
 }
 
-export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) => {
+export const AuthModal = ({ isOpen, onClose, onAuthSuccess, initialMessage }: AuthModalProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMessage) {
+        setNotice(initialMessage);
+      } else {
+        setNotice(null);
+      }
+      setError(null);
+    }
+  }, [isOpen, initialMessage]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setLoading(true);
 
     try {
@@ -93,7 +108,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
         </button>
 
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div
             style={{
               width: '48px',
@@ -119,6 +134,29 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
           </span>
         </div>
 
+        {/* Global Notice (Vui lòng đăng nhập!) */}
+        {notice && (
+          <div
+            style={{
+              backgroundColor: 'var(--primary-soft)',
+              border: '1.5px solid var(--primary)',
+              borderRadius: 'var(--radius-input)',
+              padding: '12px 14px',
+              color: 'var(--primary-hover)',
+              fontSize: '14px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '18px',
+              animation: 'fadeIn 0.2s ease-out',
+            }}
+          >
+            <AlertCircle size={18} />
+            <span>{notice}</span>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div
@@ -140,6 +178,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
           </div>
         )}
 
+        
         {/* Auth Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {!isLogin && (
@@ -187,14 +226,34 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
             <div style={{ position: 'relative' }}>
               <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="cine-input"
-                style={{ paddingLeft: '36px' }}
+                style={{ paddingLeft: '36px', paddingRight: '40px' }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
@@ -217,6 +276,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
             onClick={() => {
               setIsLogin(!isLogin);
               setError(null);
+              setNotice(null);
             }}
             style={{
               background: 'transparent',

@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Notifications Dropdown */}
-          <NotificationDropdown user={user} />
+          <NotificationDropdown user={user} onOpenMyTickets={onOpenMyTickets} onOpenProfile={onOpenProfile} />
 
           {/* User Logged In State */}
           {user ? (

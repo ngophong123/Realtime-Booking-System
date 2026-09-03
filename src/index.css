@@ -164,7 +164,7 @@ button, input, select, textarea {
 .cine-card-hover:hover {
   transform: translateY(-6px);
   box-shadow: var(--shadow-hover);
-  border-color: rgba(255, 122, 26, 0.3);
+  border-color: var(--primary-glow);
 }
 
 /* Movie Poster Container with Inner Zoom */
@@ -317,7 +317,7 @@ button, input, select, textarea {
   top: 0;
   left: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary) 0%, #FF9A4A 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, #A78BFA 100%);
   z-index: 9999;
   box-shadow: 0 0 8px var(--primary-glow);
   transition: width 0.3s ease, opacity 0.3s ease;
@@ -385,4 +385,73 @@ button, input, select, textarea {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #9CA3AF;
+}
+
+
+/* ==========================================================================
+   MOBILE RESPONSIVE STYLES (ĐIỆN THOẠI & TABLET)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Quick Booking 4 Steps Stack */
+  .quick-booking-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Movie Cards Grid: 2 columns on mobile */
+  main div[style*="gridTemplateColumns: 'repeat(auto-fill"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* SeatMap 2 Columns Layout to 1 Column Stack */
+  div[style*="gridTemplateColumns: '1fr 340px'"] {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  /* Admin Modal 2 Columns to 1 Column Stack */
+  div[style*="gridTemplateColumns: '240px 1fr'"] {
+    grid-template-columns: 1fr !important;
+    height: 95vh !important;
+  }
+
+  /* Hero Banner height adjust */
+  .hero-banner-container {
+    height: 280px !important;
+  }
+
+  /* Modal Padding */
+  .cine-card {
+    padding: 16px !important;
+  }
+
+  /* Ticket 2 Columns to 1 Column Stack */
+  div[style*="gridTemplateColumns: '1.4fr 1fr'"],
+  div[style*="gridTemplateColumns: '1.6fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  div[style*="borderRight: '1.5px dashed var(--border)'"] {
+    border-right: none !important;
+    border-bottom: 1.5px dashed var(--border) !important;
+    padding-right: 0 !important;
+    padding-bottom: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  main {
+    padding: 12px 12px 60px !important;
+  }
+
+  h1, h2 {
+    font-size: 1.3rem !important;
+  }
+
+  /* Movie Card Title 1 line */
+  .movie-card-title {
+    font-size: 13px !important;
+  }
 }

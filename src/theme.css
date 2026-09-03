@@ -1,27 +1,27 @@
 :root {
-  /* LIGHT THEME COLOR TOKENS */
+  /* LIGHT THEME COLOR TOKENS (PURPLE ACCENT) */
   --bg: #FFFFFF;
   --bg-soft: #F6F7FA;
   --surface: #FFFFFF;
   --surface-hover: #F9FAFB;
   --border: #E7E9EE;
-  --border-focus: #FF7A1A;
+  --border-focus: #7C3AED;
   
   --text: #1A1D23;
   --text-muted: #6B7280;
   --text-light: #9CA3AF;
   
-  --primary: #FF7A1A;
-  --primary-hover: #E86A0C;
-  --primary-soft: rgba(255, 122, 26, 0.08);
-  --primary-glow: rgba(255, 122, 26, 0.25);
+  --primary: #7C3AED;
+  --primary-hover: #6D28D9;
+  --primary-soft: rgba(124, 58, 237, 0.08);
+  --primary-glow: rgba(124, 58, 237, 0.25);
   
   --secondary: #1857C4;
   --secondary-hover: #12449C;
   --secondary-soft: rgba(24, 87, 196, 0.08);
   
   --rating: #FFC107;
-  --age-badge: #FF7A1A;
+  --age-badge: #7C3AED;
   
   --success: #16A34A;
   --success-soft: rgba(22, 163, 74, 0.1);

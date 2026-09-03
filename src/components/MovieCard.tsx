@@ -1,18 +1,24 @@
 import React from 'react';
-import { Star, Play, Ticket, Clock } from 'lucide-react';
+import { Star, Play, Ticket, Clock, Calendar } from 'lucide-react';
 import type { Movie } from '../types';
 import { RippleButton } from './common/RippleButton';
 
+import type { Showtime } from '../types';
+
 interface MovieCardProps {
   movie: Movie;
+  showtimes?: Showtime[];
   onBookNow: () => void;
   onViewDetail: () => void;
+  onSelectShowtime?: (showtime: Showtime) => void;
 }
 
 export const MovieCard: React.FC<MovieCardProps> = ({
   movie,
+  showtimes = [],
   onBookNow,
   onViewDetail,
+  onSelectShowtime,
 }) => {
   // Generate stable mock rating for each movie based on id
   const rating = ((movie.id.charCodeAt(0) % 15) / 10 + 8.2).toFixed(1);
@@ -183,6 +189,96 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <span>{movie.duration} phút</span>
           </div>
         </div>
+          {/* Direct Showtimes Pills on Home Screen Card */}
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={12} /> Suất Chiếu:
+              </span>
+              {showtimes.length > 0 && (
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  {showtimes.length} suất hôm nay
+                </span>
+              )}
+            </div>
+
+            {showtimes.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {showtimes.slice(0, 3).map((st) => {
+                  const timeStr = new Date(st.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const roomType = st.room?.type || 'STD';
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectShowtime) onSelectShowtime(st);
+                        else onBookNow();
+                      }}
+                      title={`${st.room?.name || 'Phòng chiếu'} • ${Number(st.price).toLocaleString('vi-VN')}đ`}
+                      style={{
+                        padding: '4px 7px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-soft)',
+                        color: 'var(--text)',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--primary)';
+                        e.currentTarget.style.backgroundColor = 'var(--primary-soft)';
+                        e.currentTarget.style.color = 'var(--primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.backgroundColor = 'var(--bg-soft)';
+                        e.currentTarget.style.color = 'var(--text)';
+                      }}
+                    >
+                      <span>{timeStr}</span>
+                      <span style={{ fontSize: '8px', padding: '1px 3px', borderRadius: '3px', backgroundColor: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                        {roomType}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {showtimes.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetail();
+                    }}
+                    style={{
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      border: '1px dashed var(--border)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--primary)',
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +{showtimes.length - 3} suất
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {movie.status === 'COMING_SOON' ? '⏳ Sắp mở bán vé' : 'Chưa có suất chiếu hôm nay'}
+              </span>
+            )}
+          </div>
+
 
         {/* Quick CTA button */}
         <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>

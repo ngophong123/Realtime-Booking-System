@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, CheckCircle2, QrCode, MapPin, Clock } from 'lucide-react';
 import { RippleButton } from './common/RippleButton';
 
@@ -8,12 +7,20 @@ interface TicketModalProps {
   bookingData: any;
 }
 
-export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, bookingData }) => {
+export const TicketModal = ({ isOpen, onClose, bookingData }: TicketModalProps) => {
   if (!isOpen || !bookingData) return null;
 
   const movie = bookingData.showtime?.movie;
   const room = bookingData.showtime?.room;
   const startTime = bookingData.showtime?.startTime ? new Date(bookingData.showtime.startTime) : new Date();
+
+  const seatNames =
+    (Array.isArray(bookingData.seatLabels) && bookingData.seatLabels.length > 0
+      ? bookingData.seatLabels.join(', ')
+      : null) ||
+    bookingData.bookingSeats?.map((s: any) => s.seat?.label || s.label || s.seatId).join(', ') ||
+    bookingData.seats?.map((s: any) => s.seat?.label || s.label || s.seatId).join(', ') ||
+    'Ghế đã chọn';
 
   return (
     <div
@@ -148,8 +155,8 @@ export const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, booki
               <div style={{ backgroundColor: 'var(--bg-soft)', borderRadius: '8px', padding: '12px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Ghế ngồi:</span>
-                  <b style={{ color: 'var(--primary)' }}>
-                    {bookingData.seats?.map((s: any) => s.seat?.label || s.seatId).join(', ') || 'Ghế đã chọn'}
+                  <b style={{ color: 'var(--primary)', fontWeight: '800', fontSize: '13px' }}>
+                    {seatNames}
                   </b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>

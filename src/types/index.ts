@@ -76,6 +76,8 @@ export interface Booking {
 
 export interface Voucher {
   id: string;
+  issueDate?: string;
+  createdAt?: string;
   code: string;
   discountPercent?: number | null;
   discountAmount?: number | null;
