@@ -195,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Socket Live Sync Badge */}
           <div
             title={isSocketConnected ? 'Hệ thống ghế kết nối trực tiếp Realtime' : 'Mất kết nối máy chủ'}
@@ -224,253 +224,224 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>LIVE SYNC</span>
           </div>
 
-          {/* Notifications Dropdown */}
-          <NotificationDropdown
-            user={user}
-            onOpenMyTickets={onOpenMyTickets}
-            onOpenProfile={onOpenProfile}
-            onOpenVouchers={onOpenVouchers}
-          />
+          {/* Admin Panel Button (nếu là Admin) */}
+          {user?.role === 'ADMIN' && (
+            <button
+              onClick={onOpenAdmin}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'var(--primary-soft)',
+                border: '1px solid var(--primary)',
+                color: 'var(--primary)',
+                padding: '7px 12px',
+                borderRadius: 'var(--radius-btn)',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <ShieldAlert size={15} />
+              <span>Admin Panel</span>
+            </button>
+          )}
 
-          {/* User Logged In State */}
+          {/* Chuông Thông Báo (đặt ngay cạnh Avatar tài khoản) */}
+          {user && (
+            <NotificationDropdown
+              user={user}
+              onOpenMyTickets={onOpenMyTickets}
+              onOpenProfile={onOpenProfile}
+              onOpenVouchers={onOpenVouchers}
+            />
+          )}
+
+          {/* User Logged In State / Avatar Dropdown */}
           {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* My Tickets Button */}
-              <button
-                onClick={onOpenMyTickets}
-                className="btn-outline"
+            <div ref={userMenuRef} style={{ position: 'relative' }}>
+              <div
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 style={{
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  borderColor: 'var(--border)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
+                  padding: '4px 10px 4px 4px',
+                  backgroundColor: 'var(--bg-soft)',
+                  borderRadius: '24px',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
               >
-                <Ticket size={15} color="var(--primary)" />
-                <span>Vé Của Tôi</span>
-              </button>
-
-              {/* My Vouchers Button */}
-              <button
-                onClick={onOpenVouchers}
-                className="btn-outline"
-                style={{
-                  padding: '8px 14px',
-                  fontSize: '13px',
-                  borderColor: 'var(--border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Gift size={15} color="var(--primary)" />
-                <span>Ví Voucher</span>
-              </button>
-
-              {user.role === 'ADMIN' && (
-                <button
-                  onClick={onOpenAdmin}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    backgroundColor: 'var(--primary-soft)',
-                    border: '1px solid var(--primary)',
-                    color: 'var(--primary)',
-                    padding: '8px 14px',
-                    borderRadius: 'var(--radius-btn)',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <ShieldAlert size={16} />
-                  <span>Admin Panel</span>
-                </button>
-              )}
-
-              {/* User Dropdown Menu */}
-              <div ref={userMenuRef} style={{ position: 'relative' }}>
                 <div
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 8px 4px 4px',
-                    backgroundColor: 'var(--bg-soft)',
-                    borderRadius: '24px',
-                    border: '1px solid var(--border)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    boxShadow: '0 2px 6px var(--primary-glow)',
                   }}
                 >
-                  <div
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.name}
+                </span>
+                <ChevronDown size={14} color="var(--text-muted)" style={{ transform: isUserMenuOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+              </div>
+
+              {/* Dropdown Menu Box */}
+              {isUserMenuOpen && (
+                <div
+                  className="cine-card animate-fade-in"
+                  style={{
+                    position: 'absolute',
+                    top: '46px',
+                    right: '0',
+                    width: '250px',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 'var(--radius-card)',
+                    boxShadow: 'var(--shadow-dropdown)',
+                    zIndex: 130,
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text)' }}>
+                      {user.name}
+                    </p>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.email}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenMyTickets();
+                    }}
                     style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '700',
-                      fontSize: '14px',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text)',
+                      textAlign: 'left',
+                      transition: 'background-color 0.15s',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user.name.split(' ').pop()}
-                  </span>
-                  <ChevronDown size={14} color="var(--text-muted)" />
-                </div>
+                    <Ticket size={16} color="var(--primary)" />
+                    <span>Vé của tôi</span>
+                  </button>
 
-                {/* Dropdown Menu Box */}
-                {isUserMenuOpen && (
-                  <div
-                    className="cine-card animate-fade-in"
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenVouchers();
+                    }}
                     style={{
-                      position: 'absolute',
-                      top: '46px',
-                      right: '0',
-                      width: '240px',
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: 'var(--radius-card)',
-                      boxShadow: 'var(--shadow-dropdown)',
-                      zIndex: 120,
-                      padding: '8px',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      border: '1px solid var(--border)',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text)',
+                      textAlign: 'left',
+                      transition: 'background-color 0.15s',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
-                      <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text)' }}>
-                        {user.name}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {user.email}
-                      </p>
-                    </div>
+                    <Gift size={16} color="var(--primary)" />
+                    <span>Ví Voucher của tôi</span>
+                  </button>
 
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenProfile();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text)',
+                      textAlign: 'left',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <UserCheck size={16} color="var(--primary)" />
+                    <span>Chỉnh sửa tài khoản</span>
+                  </button>
+
+                  <div style={{ borderTop: '1px solid var(--border)', marginTop: '4px', paddingTop: '4px' }}>
                     <button
                       onClick={() => {
                         setIsUserMenuOpen(false);
-                        onOpenProfile();
+                        onLogout();
                       }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
                         padding: '9px 12px',
+                        width: '100%',
                         background: 'transparent',
                         border: 'none',
                         borderRadius: '6px',
                         cursor: 'pointer',
                         fontSize: '13px',
                         fontWeight: '600',
-                        color: 'var(--text)',
+                        color: 'var(--danger)',
                         textAlign: 'left',
                         transition: 'background-color 0.15s',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--danger-soft)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                      <UserCheck size={16} color="var(--primary)" />
-                      <span>Chỉnh sửa tài khoản</span>
+                      <LogOut size={16} />
+                      <span>Đăng xuất</span>
                     </button>
-
-                    <button
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        onOpenVouchers();
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '9px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        color: 'var(--text)',
-                        textAlign: 'left',
-                        transition: 'background-color 0.15s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <Gift size={16} color="var(--primary)" />
-                      <span>Ví Voucher của tôi</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        onOpenMyTickets();
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '9px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        color: 'var(--text)',
-                        textAlign: 'left',
-                        transition: 'background-color 0.15s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-soft)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <Ticket size={16} color="var(--primary)" />
-                      <span>Vé đã đặt</span>
-                    </button>
-
-                    <div style={{ borderTop: '1px solid var(--border)', marginTop: '4px', paddingTop: '4px' }}>
-                      <button
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          onLogout();
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '9px 12px',
-                          width: '100%',
-                          background: 'transparent',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          color: 'var(--danger)',
-                          textAlign: 'left',
-                          transition: 'background-color 0.15s',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--danger-soft)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        <LogOut size={16} />
-                        <span>Đăng xuất</span>
-                      </button>
-                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <RippleButton
