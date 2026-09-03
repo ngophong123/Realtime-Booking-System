@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   X,
-  Search,
   Film,
   Gift,
   Ticket,
-  User as UserIcon,
   ShieldCheck,
-  ChevronDown,
   LogOut,
-  MapPin,
+  User as UserIcon,
+  ChevronDown,
+  UserCheck,
 } from 'lucide-react';
 import type { User } from '../../types';
 
@@ -22,6 +21,7 @@ interface SlideInMenuProps {
   onOpenAdmin: () => void;
   onOpenMyTickets: () => void;
   onOpenProfile: () => void;
+  onOpenVouchers?: () => void;
   onSelectFilter?: (filter: 'now_showing' | 'coming_soon' | 'all') => void;
 }
 
@@ -34,18 +34,17 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
   onOpenAdmin,
   onOpenMyTickets,
   onOpenProfile,
+  onOpenVouchers,
   onSelectFilter,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
     movies: true,
-    account: true,
   });
 
   if (!isOpen) return null;
 
-  const toggleSection = (key: string) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (section: string) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
   return (
@@ -53,47 +52,56 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
         backdropFilter: 'blur(3px)',
-        zIndex: 1000,
+        zIndex: 200,
         display: 'flex',
         justifyContent: 'flex-end',
       }}
       onClick={onClose}
     >
       <div
-        className="animate-slide-right"
+        className="animate-slide-in"
         style={{
           width: '100%',
-          maxWidth: '380px',
+          maxWidth: '360px',
           height: '100%',
           backgroundColor: '#FFFFFF',
-          boxShadow: 'var(--shadow-drawer)',
+          boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.15)',
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'space-between',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with Title & Close Button */}
+        {/* Header */}
         <div
           style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border)',
+            backgroundColor: 'var(--bg-soft)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
+            <div
               style={{
-                color: 'var(--secondary)',
-                fontWeight: '800',
-                fontSize: '20px',
-                letterSpacing: '-0.5px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
               }}
             >
+              <Film size={18} />
+            </div>
+            <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--secondary)' }}>
               CINE<span style={{ color: 'var(--primary)' }}>VERSE</span>
             </span>
           </div>
@@ -101,49 +109,23 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
           <button
             onClick={onClose}
             style={{
-              background: 'var(--bg-soft)',
+              backgroundColor: 'transparent',
               border: 'none',
-              borderRadius: '50%',
-              width: '36px',
-              height: '36px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '4px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
             }}
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ position: 'relative' }}>
-            <Search
-              size={16}
-              color="var(--text-light)"
-              style={{ position: 'absolute', left: '12px', top: '12px' }}
-            />
-            <input
-              type="text"
-              placeholder="Tìm phim, diễn viên, rạp..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="cine-input"
-              style={{
-                paddingLeft: '38px',
-                backgroundColor: 'var(--bg-soft)',
-                fontSize: '13px',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Navigation List Accordion */}
-        <div style={{ padding: '12px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Section 1: Movies */}
+        {/* Menu Navigation Links */}
+        <div style={{ padding: '20px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Section 1: Phim & Lịch Chiếu */}
           <div>
             <button
               onClick={() => toggleSection('movies')}
@@ -237,34 +219,11 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
             )}
           </div>
 
-          {/* Section 2: Cinema Locations & Prices */}
-          <button
-            onClick={onClose}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '12px 14px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '700',
-              fontSize: '14px',
-              color: 'var(--text)',
-              textAlign: 'left',
-            }}
-          >
-            <MapPin size={18} color="var(--secondary)" />
-            <span>Rạp Toàn Quốc &amp; Giá Vé</span>
-          </button>
-
-          {/* Section 3: Promotions & Vouchers */}
+          {/* Section 2: Vouchers & Wallet */}
           <button
             onClick={() => {
-              if (user) onOpenProfile();
-              else onOpenAuth();
+              if (onOpenVouchers) onOpenVouchers();
+              else if (onOpenProfile) onOpenProfile();
               onClose();
             }}
             style={{
@@ -284,10 +243,10 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
             }}
           >
             <Gift size={18} color="var(--primary)" />
-            <span>Ưu Đãi &amp; Khuyến Mãi</span>
+            <span>Ví Voucher & Ưu Đãi</span>
           </button>
 
-          {/* Section 4: My Tickets */}
+          {/* Section 3: My Tickets */}
           {user && (
             <button
               onClick={() => {
@@ -312,6 +271,34 @@ export const SlideInMenu: React.FC<SlideInMenuProps> = ({
             >
               <Ticket size={18} color="var(--primary)" />
               <span>Vé Của Tôi</span>
+            </button>
+          )}
+
+          {/* Section 4: Edit Profile */}
+          {user && (
+            <button
+              onClick={() => {
+                onOpenProfile();
+                onClose();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 14px',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '14px',
+                color: 'var(--text)',
+                textAlign: 'left',
+              }}
+            >
+              <UserCheck size={18} color="var(--primary)" />
+              <span>Chỉnh Sửa Tài Khoản</span>
             </button>
           )}
 

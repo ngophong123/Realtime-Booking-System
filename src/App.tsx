@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { QuickBookingBar } from './components/QuickBookingBar';
@@ -12,6 +12,7 @@ import { MovieRecommendations } from './components/MovieRecommendations';
 import { MyTicketsModal } from './components/MyTicketsModal';
 import { TicketModal } from './components/TicketModal';
 import { ProfileModal } from './components/ProfileModal';
+import { VoucherModal } from './components/VoucherModal';
 import { PolicyModal } from './components/PolicyModal';
 import { Footer } from './components/Footer';
 import { AIChatWidget } from './components/AIChatWidget';
@@ -51,6 +52,7 @@ function App() {
   const [authInitialMessage, setAuthInitialMessage] = useState<string | null>(null);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isVoucherOpen, setIsVoucherOpen] = useState(false);
   const [isMyTicketsOpen, setIsMyTicketsOpen] = useState(false);
   const [isSlideMenuOpen, setIsSlideMenuOpen] = useState(false);
   const [detailMovie, setDetailMovie] = useState<Movie | null>(null);
@@ -80,6 +82,7 @@ function App() {
       setIsAdminOpen(false);
       setIsMyTicketsOpen(false);
       setIsProfileOpen(false);
+      setIsVoucherOpen(false);
       setAuthInitialMessage(customEvent.detail?.message || 'Vui lòng đăng nhập!');
       setIsAuthOpen(true);
     };
@@ -218,21 +221,25 @@ function App() {
             right: '24px',
             backgroundColor: '#FFFFFF',
             border: '1px solid var(--border)',
-            borderLeft: '4px solid var(--primary)',
             boxShadow: 'var(--shadow-dropdown)',
             borderRadius: 'var(--radius-card)',
-            padding: '14px 18px',
-            zIndex: 150,
-            maxWidth: '360px',
+            padding: '12px 16px',
+            zIndex: 1000,
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             gap: '12px',
+            maxWidth: '380px',
+            animation: 'fadeIn 0.3s ease-out',
           }}
         >
           <div
             style={{
+              width: '36px',
+              height: '36px',
               backgroundColor: 'var(--primary-soft)',
-              padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: '6px',
               color: 'var(--primary)',
             }}
@@ -262,6 +269,14 @@ function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenVouchers={() => {
+          if (user) {
+            setIsVoucherOpen(true);
+          } else {
+            setAuthInitialMessage('Vui lòng đăng nhập để xem Ví Voucher của bạn!');
+            setIsAuthOpen(true);
+          }
+        }}
         onOpenSlideMenu={() => setIsSlideMenuOpen(true)}
         onSelectFilter={(f) => {
           setSelectedShowtime(null);
@@ -284,6 +299,14 @@ function App() {
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenMyTickets={() => setIsMyTicketsOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenVouchers={() => {
+          if (user) {
+            setIsVoucherOpen(true);
+          } else {
+            setAuthInitialMessage('Vui lòng đăng nhập để xem Ví Voucher của bạn!');
+            setIsAuthOpen(true);
+          }
+        }}
         onSelectFilter={(f) => {
           setSelectedShowtime(null);
           setMovieFilter(f);
@@ -291,47 +314,39 @@ function App() {
         }}
       />
 
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 24px 80px', flex: 1, width: '100%' }}>
+      {/* Main Content Body */}
+      <main style={{ flex: 1 }}>
         {selectedShowtime ? (
           <SeatMap
             showtime={selectedShowtime}
             onBack={() => setSelectedShowtime(null)}
+            onRequireAuth={() => {
+              setAuthInitialMessage('Vui lòng đăng nhập để chọn ghế và tiến hành đặt vé!');
+              setIsAuthOpen(true);
+            }}
             onBookingSuccess={(booking) => {
               setBookingSuccessData(booking);
               setSelectedShowtime(null);
             }}
-            onRequireAuth={() => {
-              setAuthInitialMessage('Vui lòng đăng nhập!');
-              setIsAuthOpen(true);
-            }}
           />
         ) : (
           <div>
-            {/* Hero Banner Carousel */}
-            {movies.length > 0 && (
-              <HeroBanner
-                movies={movies}
-                showtimes={showtimes}
-                onBookNow={handleSelectMovieForBooking}
-                onViewDetail={handleOpenDetail}
-                onSelectShowtime={(st) => setSelectedShowtime(st)}
-              />
-            )}
+            {/* Hero Carousel Banner */}
+            <HeroBanner
+              movies={movies.filter((m) => m.status === 'NOW_SHOWING')}
+              onBookNow={(movie) => handleSelectMovieForBooking(movie)}
+              onViewDetail={(movie) => handleOpenDetail(movie)}
+            />
 
-            {/* Quick Booking 4-Step Bar (Sits on top/under hero) */}
-            <div style={{ marginTop: '-40px', marginBottom: '40px' }}>
-              <QuickBookingBar
-                movies={movies}
-                rooms={rooms}
-                showtimes={showtimes}
-                onSelectShowtime={(st) => setSelectedShowtime(st)}
-              />
-            </div>
+            {/* Quick Showtime Booking Bar */}
+            <QuickBookingBar
+              movies={movies}
+              rooms={rooms}
+              showtimes={showtimes}
+              onSelectShowtime={(st) => setSelectedShowtime(st)}
+            />
 
-            {/* AI Movie Recommendations */}
-            <MovieRecommendations onSelectMovie={handleOpenDetail} />
-
-            {/* Full Showtimes Schedule Timeline Section on Home */}
+            {/* Suất Chiếu Trực Tiếp Theo Ngày & Phòng Chiếu */}
             <ShowtimeScheduleSection
               movies={movies}
               showtimes={showtimes}
@@ -340,111 +355,94 @@ function App() {
               onSelectMovieDetail={handleOpenDetail}
             />
 
-            {/* Main Movie Catalog Section */}
-            <div ref={movieSectionRef} style={{ marginBottom: '40px' }}>
-              {/* Category Tabs Header */}
+            {/* Phim Được Đề Xuất (Gợi ý thịnh hành) */}
+            <MovieRecommendations
+              onSelectMovie={handleOpenDetail}
+            />
+
+            {/* Movie Catalog Grid */}
+            <div
+              ref={movieSectionRef}
+              style={{
+                maxWidth: '1280px',
+                margin: '0 auto',
+                padding: '40px 24px',
+              }}
+            >
+              {/* Filter Tabs Header */}
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
                   justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '24px',
                   borderBottom: '2px solid var(--border)',
-                  marginBottom: '28px',
-                  flexWrap: 'wrap',
-                  gap: '16px',
+                  paddingBottom: '12px',
                 }}
               >
-                {/* Left: Tab items */}
-                <div style={{ display: 'flex', gap: '32px' }}>
+                <div style={{ display: 'flex', gap: '20px' }}>
                   <button
-                    onClick={() => { setMovieFilter('now_showing'); setCurrentPage(1); }}
+                    onClick={() => {
+                      setMovieFilter('now_showing');
+                      setCurrentPage(1);
+                    }}
                     style={{
                       background: 'none',
                       border: 'none',
-                      padding: '12px 4px',
                       fontSize: '18px',
-                      fontWeight: movieFilter === 'now_showing' ? '800' : '600',
-                      color: movieFilter === 'now_showing' ? 'var(--text)' : 'var(--text-muted)',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      color: movieFilter === 'now_showing' ? 'var(--primary)' : 'var(--text-muted)',
                       borderBottom: movieFilter === 'now_showing' ? '3px solid var(--primary)' : '3px solid transparent',
-                      marginBottom: '-2px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s',
+                      paddingBottom: '12px',
+                      marginBottom: '-14px',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    <span>Phim Đang Chiếu</span>
-                    <span
-                      style={{
-                        backgroundColor: movieFilter === 'now_showing' ? 'var(--primary-soft)' : 'var(--bg-soft)',
-                        color: movieFilter === 'now_showing' ? 'var(--primary)' : 'var(--text-muted)',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                      }}
-                    >
-                      {movies.filter((m) => m.status === 'NOW_SHOWING').length}
-                    </span>
+                    PHIM ĐANG CHIẾU
                   </button>
-
                   <button
-                    onClick={() => { setMovieFilter('coming_soon'); setCurrentPage(1); }}
+                    onClick={() => {
+                      setMovieFilter('coming_soon');
+                      setCurrentPage(1);
+                    }}
                     style={{
                       background: 'none',
                       border: 'none',
-                      padding: '12px 4px',
                       fontSize: '18px',
-                      fontWeight: movieFilter === 'coming_soon' ? '800' : '600',
-                      color: movieFilter === 'coming_soon' ? 'var(--text)' : 'var(--text-muted)',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      color: movieFilter === 'coming_soon' ? 'var(--primary)' : 'var(--text-muted)',
                       borderBottom: movieFilter === 'coming_soon' ? '3px solid var(--primary)' : '3px solid transparent',
-                      marginBottom: '-2px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s',
+                      paddingBottom: '12px',
+                      marginBottom: '-14px',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    <span>Phim Sắp Chiếu</span>
-                    <span
-                      style={{
-                        backgroundColor: movieFilter === 'coming_soon' ? 'var(--primary-soft)' : 'var(--bg-soft)',
-                        color: movieFilter === 'coming_soon' ? 'var(--primary)' : 'var(--text-muted)',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                      }}
-                    >
-                      {movies.filter((m) => m.status === 'COMING_SOON').length}
-                    </span>
+                    PHIM SẮP CHIẾU
                   </button>
-
                   <button
-                    onClick={() => { setMovieFilter('all'); setCurrentPage(1); }}
+                    onClick={() => {
+                      setMovieFilter('all');
+                      setCurrentPage(1);
+                    }}
                     style={{
                       background: 'none',
                       border: 'none',
-                      padding: '12px 4px',
                       fontSize: '18px',
-                      fontWeight: movieFilter === 'all' ? '800' : '600',
-                      color: movieFilter === 'all' ? 'var(--text)' : 'var(--text-muted)',
-                      borderBottom: movieFilter === 'all' ? '3px solid var(--primary)' : '3px solid transparent',
-                      marginBottom: '-2px',
+                      fontWeight: '800',
                       cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s',
+                      color: movieFilter === 'all' ? 'var(--primary)' : 'var(--text-muted)',
+                      borderBottom: movieFilter === 'all' ? '3px solid var(--primary)' : '3px solid transparent',
+                      paddingBottom: '12px',
+                      marginBottom: '-14px',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    <span>Tất Cả Phim</span>
+                    TẤT CẢ PHIM
                   </button>
                 </div>
 
-                {/* Right: Location Indicator */}
                 <div
                   style={{
                     display: 'flex',
@@ -639,6 +637,12 @@ function App() {
         onClose={() => setIsProfileOpen(false)}
         user={user}
         onUserUpdate={(updated) => setUser(updated)}
+      />
+
+      <VoucherModal
+        isOpen={isVoucherOpen}
+        onClose={() => setIsVoucherOpen(false)}
+        user={user}
       />
 
       <PolicyModal

@@ -1,6 +1,6 @@
-import { useState, useEffect, type FormEvent } from 'react';
-import { X, Gift, Tag, Check, Copy, User, Lock, Mail, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import type { User as UserType, Voucher } from '../types';
+﻿import React, { useState, useEffect, type FormEvent } from 'react';
+import { X, User, Lock, Mail, CheckCircle2, AlertCircle, Eye, EyeOff, Shield } from 'lucide-react';
+import type { User as UserType } from '../types';
 import API from '../services/api';
 import { RippleButton } from './common/RippleButton';
 
@@ -11,11 +11,12 @@ interface ProfileModalProps {
   onUserUpdate?: (updatedUser: UserType) => void;
 }
 
-export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileModalProps) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'vouchers'>('profile');
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-
+export const ProfileModal: React.FC<ProfileModalProps> = ({
+  isOpen,
+  onClose,
+  user,
+  onUserUpdate,
+}) => {
   // Edit Profile Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -36,20 +37,10 @@ export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileMod
       setNewPassword('');
       setConfirmPassword('');
       setMessage(null);
-
-      API.get('/vouchers/my-vouchers')
-        .then((res) => setVouchers(res.data.vouchers || []))
-        .catch((err) => console.error('Lỗi nạp voucher:', err));
     }
-  }, [isOpen, user, activeTab]);
+  }, [isOpen, user]);
 
   if (!isOpen || !user) return null;
-
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
 
   const handleUpdateProfile = async (e: FormEvent) => {
     e.preventDefault();
@@ -90,12 +81,12 @@ export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileMod
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.45)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(5px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 150,
+        zIndex: 160,
         padding: '20px',
       }}
     >
@@ -103,7 +94,7 @@ export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileMod
         className="cine-card animate-fade-in"
         style={{
           width: '100%',
-          maxWidth: '580px',
+          maxWidth: '520px',
           maxHeight: '90vh',
           backgroundColor: '#FFFFFF',
           borderRadius: 'var(--radius-modal)',
@@ -125,23 +116,27 @@ export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileMod
             border: 'none',
             color: 'var(--text-muted)',
             borderRadius: '50%',
-            width: '32px',
-            height: '32px',
+            width: '34px',
+            height: '34px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
             zIndex: 10,
+            transition: 'all 0.2s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--danger)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
         >
-          <X size={16} />
+          <X size={18} />
         </button>
 
-        {/* User Profile Header */}
+        {/* Header */}
         <div
           style={{
-            padding: '24px 28px 16px',
+            padding: '24px 28px 18px',
             backgroundColor: 'var(--bg-soft)',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
@@ -159,300 +154,194 @@ export const ProfileModal = ({ isOpen, onClose, user, onUserUpdate }: ProfileMod
               justifyContent: 'center',
               fontWeight: '800',
               fontSize: '20px',
-              boxShadow: '0 4px 10px var(--primary-glow)',
+              boxShadow: '0 4px 12px var(--primary-glow)',
             }}
           >
             {user.name.charAt(0).toUpperCase()}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text)', margin: 0 }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text)' }}>
                 {user.name}
-              </h2>
+              </h3>
               <span
                 style={{
-                  backgroundColor: user.role === 'ADMIN' ? 'var(--primary-soft)' : 'var(--secondary-soft)',
-                  color: user.role === 'ADMIN' ? 'var(--primary)' : 'var(--secondary)',
-                  border: `1px solid ${user.role === 'ADMIN' ? 'var(--primary)' : 'var(--secondary)'}`,
+                  backgroundColor: user.role === 'ADMIN' ? 'var(--danger-soft)' : 'var(--primary-soft)',
+                  color: user.role === 'ADMIN' ? 'var(--danger)' : 'var(--primary)',
                   fontSize: '11px',
-                  fontWeight: '700',
+                  fontWeight: '800',
                   padding: '2px 8px',
-                  borderRadius: '4px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                {user.role}
+                <Shield size={11} /> {user.role === 'ADMIN' ? 'QUẢN TRỊ VIÊN' : 'THÀNH VIÊN'}
               </span>
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user.email}</span>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+              {user.email}
+            </p>
           </div>
         </div>
-
-        {/* Tabs Switcher */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-soft)', padding: '0 28px' }}>
-          <button
-            onClick={() => { setActiveTab('profile'); setMessage(null); }}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'profile' ? '800' : '600',
-              color: activeTab === 'profile' ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'profile' ? '2.5px solid var(--primary)' : '2.5px solid transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <User size={15} />
-            <span>Sửa Tài Khoản &amp; Mật Khẩu</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveTab('vouchers'); setMessage(null); }}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '12px 16px',
-              fontSize: '13px',
-              fontWeight: activeTab === 'vouchers' ? '800' : '600',
-              color: activeTab === 'vouchers' ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'vouchers' ? '2.5px solid var(--primary)' : '2.5px solid transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Gift size={15} />
-            <span>Ví Voucher ({vouchers.length})</span>
-          </button>
-        </div>
-
-        {/* Message Banner */}
-        {message && (
-          <div
-            style={{
-              margin: '12px 28px 0',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-input)',
-              fontSize: '13px',
-              backgroundColor: message.type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)',
-              border: `1px solid ${message.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
-              color: message.type === 'success' ? 'var(--success)' : 'var(--danger)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            <span>{message.text}</span>
-          </div>
-        )}
 
         {/* Body Content */}
-        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, backgroundColor: '#FFFFFF' }}>
-          {/* TAB 1: EDIT PROFILE FORM */}
-          {activeTab === 'profile' && (
-            <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)', display: 'block', marginBottom: '4px' }}>
-                  Họ và Tên
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <User size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="cine-input"
-                    style={{ paddingLeft: '36px' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text)', display: 'block', marginBottom: '4px' }}>
-                  Địa Chỉ Email
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Mail size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="cine-input"
-                    style={{ paddingLeft: '36px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px', marginTop: '4px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)', display: 'block', marginBottom: '10px' }}>
-                  Đổi Mật Khẩu (Bỏ trống nếu không đổi)
-                </span>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                      Mật khẩu hiện tại
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
-                      <input
-                          type={showCurrentPassword ? 'text' : 'password'}
-                          placeholder="Nhập mật khẩu cũ..."
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="cine-input"
-                          style={{ paddingLeft: '36px', paddingRight: '36px' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                          style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                        >
-                          {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                        </button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                        Mật khẩu mới
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                          <input
-                            type={showNewPassword ? 'text' : 'password'}
-                            placeholder="Mật khẩu mới..."
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="cine-input"
-                            style={{ paddingRight: '36px' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                          >
-                            {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                        Xác nhận mật khẩu
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                          <input
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            placeholder="Nhập lại mật khẩu..."
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="cine-input"
-                            style={{ paddingRight: '36px' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                          >
-                            {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <RippleButton
-                type="submit"
-                loading={loading}
-                loadingText="Đang Lưu..."
-                style={{ width: '100%', padding: '11px', marginTop: '8px', fontSize: '13px' }}
-              >
-                LƯU THAY ĐỔI TÀI KHOẢN
-              </RippleButton>
-            </form>
-          )}
-
-          {/* TAB 2: VOUCHERS WALLET */}
-          {activeTab === 'vouchers' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text)' }}>
-                  Ví Voucher Của Tôi ({vouchers.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    API.get('/vouchers/my-vouchers')
-                      .then((res) => setVouchers(res.data.vouchers || []))
-                      .catch((err) => console.error('Lỗi nạp voucher:', err));
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🔄 Làm mới
-                </button>
-              </div>
-              {vouchers.length === 0 ? (
-                <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  Bạn chưa có mã giảm giá nào. Hãy đón chờ các chương trình khuyến mãi và quà tặng từ rạp nhé!
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {vouchers.map((v) => (
-                    <div
-                      key={v.id}
-                      style={{
-                        backgroundColor: 'var(--bg-soft)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-card)',
-                        padding: '14px 18px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                          <Tag size={14} color="var(--primary)" />
-                          <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
-                            {v.code}
-                          </span>
-                          <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700' }}>
-                            {v.discountPercent ? `Giảm ${v.discountPercent}%` : `Giảm ${Number(v.discountAmount).toLocaleString('vi-VN')}đ`}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          Đơn tối thiểu: {Number(v.minOrderAmount).toLocaleString('vi-VN')}đ • HSD: {new Date(v.expireAt).toLocaleDateString('vi-VN')}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => handleCopy(v.code)}
-                        className="btn-outline"
-                        style={{ padding: '6px 12px', fontSize: '12px', borderColor: 'var(--border)' }}
-                      >
-                        {copiedCode === v.code ? <><Check size={13} color="var(--success)" /> Đã chép</> : <><Copy size={13} /> Sao chép</>}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1 }}>
+          {message && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: message.type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)',
+                color: message.type === 'success' ? 'var(--success)' : 'var(--danger)',
+                border: `1px solid ${message.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
+              }}
+            >
+              {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{message.text}</span>
             </div>
           )}
+
+          <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Basic Info */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                Họ và Tên
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={16} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="cine-input"
+                  style={{ paddingLeft: '38px' }}
+                  placeholder="Nhập họ và tên..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+                Địa Chỉ Email
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="cine-input"
+                  style={{ paddingLeft: '38px' }}
+                  placeholder="Nhập địa chỉ email..."
+                />
+              </div>
+            </div>
+
+            {/* Password Section */}
+            <div
+              style={{
+                borderTop: '1px solid var(--border)',
+                paddingTop: '16px',
+                marginTop: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Lock size={15} color="var(--primary)" /> Đổi Mật Khẩu (Để trống nếu không đổi)
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                  Mật khẩu hiện tại
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    placeholder="Nhập mật khẩu cũ..."
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="cine-input"
+                    style={{ paddingLeft: '36px', paddingRight: '36px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Mật khẩu mới
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Mật khẩu mới..."
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="cine-input"
+                      style={{ paddingRight: '36px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Xác nhận mật khẩu
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Nhập lại mật khẩu..."
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="cine-input"
+                      style={{ paddingRight: '36px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '10px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <RippleButton
+              type="submit"
+              loading={loading}
+              loadingText="Đang Lưu..."
+              style={{ width: '100%', padding: '12px', marginTop: '8px', fontSize: '13px' }}
+            >
+              LƯU THAY ĐỔI TÀI KHOẢN
+            </RippleButton>
+          </form>
         </div>
       </div>
     </div>

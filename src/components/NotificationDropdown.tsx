@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, Ticket, Gift, AlertCircle, Info, ExternalLink } from 'lucide-react';
-import type { Notification, User } from '../types';
+import type { User, Notification } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
 
@@ -8,13 +8,15 @@ interface NotificationDropdownProps {
   user: User | null;
   onOpenMyTickets?: () => void;
   onOpenProfile?: () => void;
+  onOpenVouchers?: () => void;
 }
 
-export const NotificationDropdown = ({
+export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   user,
   onOpenMyTickets,
   onOpenProfile,
-}: NotificationDropdownProps) => {
+  onOpenVouchers,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,11 +38,10 @@ export const NotificationDropdown = ({
   useEffect(() => {
     if (user) {
       fetchNotifications();
-    } else {
-      setNotifications([]);
     }
   }, [user]);
 
+  // Lắng nghe Socket realtime
   useEffect(() => {
     if (!user) return;
 
@@ -89,7 +90,8 @@ export const NotificationDropdown = ({
     if (n.type === 'BOOKING' || n.type === 'APPROVED' || n.type === 'CANCELLED') {
       if (onOpenMyTickets) onOpenMyTickets();
     } else if (n.type === 'VOUCHER') {
-      if (onOpenProfile) onOpenProfile();
+      if (onOpenVouchers) onOpenVouchers();
+      else if (onOpenProfile) onOpenProfile();
     }
   };
 
