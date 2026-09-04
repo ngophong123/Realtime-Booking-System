@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 const API = axios.create({
   baseURL: 'http://localhost:3000/api',
@@ -13,21 +13,26 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// Response Interceptor: Catch 401 Unauthorized globally
+// Response Interceptor: Catch 401 Unauthorized globally (exclude auth endpoints)
 API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear invalid / expired credentials
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
 
-      // Dispatch global custom event to trigger AuthModal
-      window.dispatchEvent(
-        new CustomEvent('auth:unauthorized', {
-          detail: { message: 'Vui lòng đăng nhập!' },
-        })
-      );
+      // Only dispatch global logout if an authenticated request failed due to expired token
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // Dispatch global custom event to trigger AuthModal
+        window.dispatchEvent(
+          new CustomEvent('auth:unauthorized', {
+            detail: { message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!' },
+          })
+        );
+      }
     }
     return Promise.reject(error);
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+﻿import { useState, useEffect, type FormEvent } from 'react';
 import { X, Mail, Lock, User, ShieldAlert, Film, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import type { User as UserType } from '../types';
 import API from '../services/api';
@@ -42,18 +42,19 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess, initialMessage }: Au
 
     try {
       if (isLogin) {
-        const res = await API.post('/auth/login', { email, password });
+        const res = await API.post('/auth/login', { email: email.trim(), password });
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
         onAuthSuccess(res.data.user);
       } else {
-        const res = await API.post('/auth/register', { name, email, password });
+        const res = await API.post('/auth/register', { name: name.trim(), email: email.trim(), password });
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
         onAuthSuccess(res.data.user);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đã có lỗi xảy ra! Vui lòng thử lại.');
+      setNotice(null);
+      setError(err.response?.data?.message || 'Email hoặc mật khẩu không chính xác! Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -178,7 +179,6 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess, initialMessage }: Au
           </div>
         )}
 
-        
         {/* Auth Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {!isLogin && (
