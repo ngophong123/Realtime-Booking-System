@@ -131,12 +131,29 @@ export const QuickBookingBar = ({
                 cursor: 'pointer',
               }}
             >
-              <option value="">-- Tất cả phim --</option>
-              {movies.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.title}
-                </option>
-              ))}
+              <option value="">-- Chọn phim --</option>
+              {movies.filter((m) => m.status === 'NOW_SHOWING').length > 0 && (
+                <optgroup label="🔥 PHIM ĐANG CHIẾU">
+                  {movies
+                    .filter((m) => m.status === 'NOW_SHOWING')
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {movies.filter((m) => m.status === 'COMING_SOON').length > 0 && (
+                <optgroup label="⏳ PHIM SẮP CHIẾU">
+                  {movies
+                    .filter((m) => m.status === 'COMING_SOON')
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title} (Sắp chiếu)
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
             <ChevronDown
               size={14}

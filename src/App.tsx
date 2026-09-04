@@ -22,7 +22,7 @@ import { SlideInMenu } from './components/common/SlideInMenu';
 import type { Movie, Showtime, User, Room } from './types';
 import API from './services/api';
 import { socket } from './services/socket';
-import { MapPin, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MapPin, Bell, ChevronLeft, ChevronRight, ShieldAlert } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -109,6 +109,28 @@ function App() {
       socket.off('seat:freed');
     };
   }, []);
+
+
+  // Listen for user / admin real-time notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const handleUserNotif = (notif: any) => {
+      setRealtimeToast({
+        id: Date.now().toString(),
+        title: notif.title,
+        message: notif.message,
+        type: notif.type === 'ADMIN_BOOKING' ? 'admin_booking' : 'approved',
+      });
+      setTimeout(() => setRealtimeToast(null), 8000);
+    };
+
+    socket.on(`notification:${user.id}`, handleUserNotif);
+
+    return () => {
+      socket.off(`notification:${user.id}`, handleUserNotif);
+    };
+  }, [user]);
 
   const fetchInitialData = async () => {
     try {
@@ -215,22 +237,34 @@ function App() {
       {/* Realtime Toast Notification */}
       {realtimeToast && (
         <div
+          onClick={() => {
+            if (realtimeToast.type === 'admin_booking') {
+              setIsAdminOpen(true);
+            } else if (realtimeToast.type === 'approved' && user) {
+              setIsMyTicketsOpen(true);
+            }
+            setRealtimeToast(null);
+          }}
           style={{
             position: 'fixed',
             top: '84px',
             right: '24px',
             backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-dropdown)',
+            border: realtimeToast.type === 'admin_booking' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
             borderRadius: 'var(--radius-card)',
             padding: '12px 16px',
             zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            maxWidth: '380px',
+            maxWidth: '400px',
+            cursor: 'pointer',
             animation: 'fadeIn 0.3s ease-out',
+            transition: 'transform 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
         >
           <div
             style={{
@@ -242,11 +276,12 @@ function App() {
               justifyContent: 'center',
               borderRadius: '6px',
               color: 'var(--primary)',
+              flexShrink: 0,
             }}
           >
-            <Bell size={18} />
+            {realtimeToast.type === 'admin_booking' ? <ShieldAlert size={18} /> : <Bell size={18} />}
           </div>
-          <div>
+          <div style={{ flex: 1 }}>
             <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: '0 0 2px' }}>
               {realtimeToast.title}
             </h4>
@@ -370,94 +405,174 @@ function App() {
               }}
             >
               {/* Filter Tabs Header */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '24px',
-                  borderBottom: '2px solid var(--border)',
-                  paddingBottom: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '20px' }}>
-                  <button
-                    onClick={() => {
-                      setMovieFilter('now_showing');
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      color: movieFilter === 'now_showing' ? 'var(--primary)' : 'var(--text-muted)',
-                      borderBottom: movieFilter === 'now_showing' ? '3px solid var(--primary)' : '3px solid transparent',
-                      paddingBottom: '12px',
-                      marginBottom: '-14px',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    PHIM ĐANG CHIẾU
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMovieFilter('coming_soon');
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      color: movieFilter === 'coming_soon' ? 'var(--primary)' : 'var(--text-muted)',
-                      borderBottom: movieFilter === 'coming_soon' ? '3px solid var(--primary)' : '3px solid transparent',
-                      paddingBottom: '12px',
-                      marginBottom: '-14px',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    PHIM SẮP CHIẾU
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMovieFilter('all');
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      color: movieFilter === 'all' ? 'var(--primary)' : 'var(--text-muted)',
-                      borderBottom: movieFilter === 'all' ? '3px solid var(--primary)' : '3px solid transparent',
-                      paddingBottom: '12px',
-                      marginBottom: '-14px',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    TẤT CẢ PHIM
-                  </button>
-                </div>
-
+              <div style={{ marginBottom: '24px' }}>
                 <div
                   style={{
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: '6px',
-                    backgroundColor: 'var(--bg-soft)',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-pill)',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: 'var(--text)',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                    borderBottom: '2px solid var(--border)',
+                    paddingBottom: '14px',
                   }}
                 >
-                  <MapPin size={15} color="var(--primary)" />
-                  <span>Khu vực: <b>Toàn Quốc</b></span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {/* Tab 1: Phim Đang Chiếu */}
+                    <button
+                      onClick={() => {
+                        setMovieFilter('now_showing');
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: movieFilter === 'now_showing' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        backgroundColor: movieFilter === 'now_showing' ? 'var(--primary)' : 'var(--bg-soft)',
+                        color: movieFilter === 'now_showing' ? '#FFFFFF' : 'var(--text)',
+                        fontSize: '15px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: movieFilter === 'now_showing' ? '0 4px 14px var(--primary-glow)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: movieFilter === 'now_showing' ? '#22C55E' : 'var(--primary)',
+                          boxShadow: movieFilter === 'now_showing' ? '0 0 6px #22C55E' : 'none',
+                        }}
+                      />
+                      <span>PHIM ĐANG CHIẾU</span>
+                      <span
+                        style={{
+                          backgroundColor: movieFilter === 'now_showing' ? 'rgba(255, 255, 255, 0.25)' : 'var(--border)',
+                          color: movieFilter === 'now_showing' ? '#FFFFFF' : 'var(--text-muted)',
+                          padding: '1px 8px',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                        }}
+                      >
+                        {movies.filter((m) => m.status === 'NOW_SHOWING').length}
+                      </span>
+                    </button>
+
+                    {/* Tab 2: Phim Sắp Chiếu */}
+                    <button
+                      onClick={() => {
+                        setMovieFilter('coming_soon');
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: movieFilter === 'coming_soon' ? '2px solid #0284C7' : '1px solid var(--border)',
+                        backgroundColor: movieFilter === 'coming_soon' ? '#0284C7' : 'var(--bg-soft)',
+                        color: movieFilter === 'coming_soon' ? '#FFFFFF' : 'var(--text)',
+                        fontSize: '15px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: movieFilter === 'coming_soon' ? '0 4px 14px rgba(2, 132, 199, 0.4)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <span>⏳ PHIM SẮP CHIẾU</span>
+                      <span
+                        style={{
+                          backgroundColor: movieFilter === 'coming_soon' ? 'rgba(255, 255, 255, 0.25)' : 'var(--border)',
+                          color: movieFilter === 'coming_soon' ? '#FFFFFF' : 'var(--text-muted)',
+                          padding: '1px 8px',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                        }}
+                      >
+                        {movies.filter((m) => m.status === 'COMING_SOON').length}
+                      </span>
+                    </button>
+
+                    {/* Tab 3: Tất Cả Phim */}
+                    <button
+                      onClick={() => {
+                        setMovieFilter('all');
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '10px 18px',
+                        borderRadius: 'var(--radius-pill)',
+                        border: movieFilter === 'all' ? '2px solid var(--secondary)' : '1px solid var(--border)',
+                        backgroundColor: movieFilter === 'all' ? 'var(--secondary)' : 'transparent',
+                        color: movieFilter === 'all' ? '#FFFFFF' : 'var(--text-muted)',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <span>Tất Cả ({movies.length})</span>
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      backgroundColor: 'var(--bg-soft)',
+                      padding: '7px 16px',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: 'var(--text)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <MapPin size={15} color="var(--primary)" />
+                    <span>Khu vực: <b>Toàn Quốc</b></span>
+                  </div>
+                </div>
+
+                {/* Subtitle Description Banner based on Active Filter */}
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    backgroundColor: movieFilter === 'now_showing' ? 'var(--primary-soft)' : movieFilter === 'coming_soon' ? 'rgba(2, 132, 199, 0.08)' : 'var(--bg-soft)',
+                    borderLeft: movieFilter === 'now_showing' ? '4px solid var(--primary)' : movieFilter === 'coming_soon' ? '4px solid #0284C7' : '4px solid var(--secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>
+                    {movieFilter === 'now_showing' && '🔥 Các siêu phẩm đang chiếu rạp hôm nay – Bấm chọn suất chiếu trực tiếp để chọn ghế và đặt vé ngay!'}
+                    {movieFilter === 'coming_soon' && '⏳ Danh sách bom tấn sắp ra mắt – Xem thông tin chi tiết, trailer và lịch dự kiến khởi chiếu!'}
+                    {movieFilter === 'all' && '🎬 Danh mục tổng hợp toàn bộ các bộ phim tại CINEVERSE Cinema.'}
+                  </p>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                    Hiển thị {filteredMovies.length} bộ phim
+                  </span>
                 </div>
               </div>
 
@@ -499,8 +614,10 @@ function App() {
                       <MovieCard
                         key={movie.id}
                         movie={movie}
+                        showtimes={showtimes.filter((st) => st.movieId === movie.id)}
                         onBookNow={() => handleSelectMovieForBooking(movie)}
                         onViewDetail={() => handleOpenDetail(movie)}
+                        onSelectShowtime={(st) => setSelectedShowtime(st)}
                       />
                     ))}
                   </div>
@@ -636,7 +753,16 @@ function App() {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={user}
-        onUserUpdate={(updated) => setUser(updated)}
+        onUserUpdate={(updated) => {
+          setUser(updated);
+          setRealtimeToast({
+            id: Date.now().toString(),
+            title: '👤 CẬP NHẬT TÀI KHOẢN THÀNH CÔNG',
+            message: `Hồ sơ tài khoản "${updated.name}" đã được lưu và cập nhật thành công!`,
+            type: 'approved',
+          });
+          setTimeout(() => setRealtimeToast(null), 6000);
+        }}
       />
 
       <VoucherModal

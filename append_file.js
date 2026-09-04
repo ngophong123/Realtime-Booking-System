@@ -1,1 +1,0 @@
-const fs = require("fs"); const [,, f, b] = process.argv; fs.appendFileSync(f, Buffer.from(b, "base64").toString("utf8"), "utf8");

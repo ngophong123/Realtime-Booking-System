@@ -255,6 +255,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onOpenMyTickets={onOpenMyTickets}
               onOpenProfile={onOpenProfile}
               onOpenVouchers={onOpenVouchers}
+              onOpenAdmin={onOpenAdmin}
             />
           )}
 

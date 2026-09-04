@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
-import { Bell, CheckCheck, Ticket, Gift, AlertCircle, Info, ExternalLink } from 'lucide-react';
-import type { User, Notification } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, CheckCheck, ExternalLink, Ticket, Gift, AlertCircle, Info, ShieldAlert } from 'lucide-react';
+import type { Notification, User } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
 
@@ -9,6 +9,7 @@ interface NotificationDropdownProps {
   onOpenMyTickets?: () => void;
   onOpenProfile?: () => void;
   onOpenVouchers?: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
@@ -16,9 +17,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   onOpenMyTickets,
   onOpenProfile,
   onOpenVouchers,
+  onOpenAdmin,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,17 +38,15 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   };
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
+    fetchNotifications();
   }, [user]);
 
-  // Lắng nghe Socket realtime
+  // Realtime Socket listener
   useEffect(() => {
     if (!user) return;
 
     const handleNewNotif = (notif: Notification) => {
-      setNotifications((prev) => [notif, ...prev]);
+      setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)]);
     };
 
     socket.on(`notification:${user.id}`, handleNewNotif);
@@ -86,8 +86,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
     setIsOpen(false);
 
-    // Chuyển hướng tới trang phù hợp với nội dung thông báo
-    if (n.type === 'BOOKING' || n.type === 'APPROVED' || n.type === 'CANCELLED') {
+    // Chuyển hướng tới đúng mục theo loại thông báo
+    if (n.type === 'ADMIN_BOOKING') {
+      if (onOpenAdmin) onOpenAdmin();
+    } else if (n.type === 'BOOKING' || n.type === 'APPROVED' || n.type === 'CANCELLED') {
       if (onOpenMyTickets) onOpenMyTickets();
     } else if (n.type === 'VOUCHER') {
       if (onOpenVouchers) onOpenVouchers();
@@ -110,6 +112,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
   const getNotifIcon = (type: string) => {
     switch (type) {
+      case 'ADMIN_BOOKING':
+        return <ShieldAlert size={15} color="var(--primary)" />;
       case 'BOOKING':
       case 'APPROVED':
         return <Ticket size={15} color="var(--primary)" />;
@@ -169,7 +173,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             position: 'absolute',
             top: '48px',
             right: '0',
-            width: '360px',
+            width: '370px',
             maxHeight: '480px',
             backgroundColor: '#FFFFFF',
             borderRadius: 'var(--radius-card)',
