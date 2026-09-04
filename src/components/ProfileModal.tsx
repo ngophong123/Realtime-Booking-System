@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, type FormEvent } from 'react';
+﻿import React, { useState, useEffect, useRef, type FormEvent } from 'react';
 import { X, User, Lock, Mail, CheckCircle2, AlertCircle, Eye, EyeOff, Shield } from 'lucide-react';
 import type { User as UserType } from '../types';
 import API from '../services/api';
@@ -28,6 +28,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -40,23 +41,43 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     }
   }, [isOpen, user]);
 
+  useEffect(() => {
+    if (message && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [message]);
+
   if (!isOpen || !user) return null;
 
   const handleUpdateProfile = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
-    if (newPassword && newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Mật khẩu xác nhận mới không khớp!' });
+    // Validate Password Change logic on client side
+    if (newPassword.trim()) {
+      if (!currentPassword.trim()) {
+        setMessage({ type: 'error', text: 'Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu mới!' });
+        return;
+      }
+      if (newPassword.trim().length < 6) {
+        setMessage({ type: 'error', text: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' });
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setMessage({ type: 'error', text: 'Mật khẩu xác nhận mới không khớp!' });
+        return;
+      }
+    } else if (currentPassword.trim() && !newPassword.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập mật khẩu mới cần thay đổi!' });
       return;
     }
 
     try {
       setLoading(true);
-      const payload: any = { name, email };
+      const payload: any = { name: name.trim(), email: email.trim() };
       if (newPassword.trim()) {
         payload.currentPassword = currentPassword;
-        payload.newPassword = newPassword;
+        payload.newPassword = newPassword.trim();
       }
 
       const res = await API.put('/auth/profile', payload);
@@ -69,8 +90,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+
+      // Auto-close after 1.5 seconds on success
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Không thể cập nhật thông tin tài khoản!' });
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Không thể cập nhật thông tin tài khoản! Vui lòng thử lại.',
+      });
     } finally {
       setLoading(false);
     }
@@ -190,20 +219,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1 }}>
           {message && (
             <div
+              ref={messageRef}
               style={{
-                padding: '10px 14px',
+                padding: '12px 16px',
                 borderRadius: '8px',
                 marginBottom: '16px',
                 fontSize: '13px',
+                fontWeight: '600',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 backgroundColor: message.type === 'success' ? 'var(--success-soft)' : 'var(--danger-soft)',
                 color: message.type === 'success' ? 'var(--success)' : 'var(--danger)',
-                border: `1px solid ${message.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
+                border: `1.5px solid ${message.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
+                animation: 'fadeIn 0.2s ease-out',
               }}
             >
-              {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
               <span>{message.text}</span>
             </div>
           )}
@@ -263,13 +295,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               <div>
                 <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                  Mật khẩu hiện tại
+                  Mật khẩu hiện tại (Chỉ nhập khi đổi mật khẩu mới)
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
                   <input
                     type={showCurrentPassword ? 'text' : 'password'}
-                    placeholder="Nhập mật khẩu cũ..."
+                    placeholder="Nhập mật khẩu hiện tại..."
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="cine-input"
@@ -288,7 +320,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Mật khẩu mới
+                    Mật khẩu mới (Tối thiểu 6 ký tự)
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
@@ -310,12 +342,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Xác nhận mật khẩu
+                    Xác nhận mật khẩu mới
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Nhập lại mật khẩu..."
+                      placeholder="Nhập lại mật khẩu mới..."
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="cine-input"
