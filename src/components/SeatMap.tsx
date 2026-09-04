@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CreditCard, QrCode, Smartphone, Gift, Heart, CheckCircle2, Tag, Check, Zap, Sparkles, Clock, AlertCircle, Maximize2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, QrCode, Smartphone, Gift, Heart, CheckCircle2, Check, Zap, Sparkles, Clock, AlertCircle, Maximize2 } from 'lucide-react';
 import type { Showtime, Seat, PaymentSetting, Voucher } from '../types';
 import API from '../services/api';
 import { socket } from '../services/socket';
@@ -84,10 +84,19 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
 
     fetchShowtimeDetail();
 
+    const fetchMyVouchers = () => {
+      if (currentUser) {
+        API.get('/vouchers/my-vouchers')
+          .then((res) => setMyVouchers(res.data.vouchers || []))
+          .catch((err) => console.error('Lỗi tải voucher của tôi:', err));
+      }
+    };
+    fetchMyVouchers();
+
     if (currentUser) {
-      API.get('/vouchers/my-vouchers')
-        .then((res) => setMyVouchers(res.data.vouchers || []))
-        .catch((err) => console.error('Lỗi tải voucher của tôi:', err));
+      socket.on(`voucher:gifted:${currentUser.id}`, fetchMyVouchers);
+      socket.on('voucher:created', fetchMyVouchers);
+      socket.on('voucher:deleted', fetchMyVouchers);
     }
 
     socket.emit('join:showtime', showtime.id);
@@ -140,6 +149,11 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
       socket.off('seat:held', onSeatHeld);
       socket.off('seat:released', onSeatReleased);
       socket.off('seat:booked', onSeatBooked);
+      if (currentUser) {
+        socket.off(`voucher:gifted:${currentUser.id}`, fetchMyVouchers);
+        socket.off('voucher:created', fetchMyVouchers);
+        socket.off('voucher:deleted', fetchMyVouchers);
+      }
     };
   }, [showtime.id]);
 
@@ -276,6 +290,12 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
 
   const handleApplyVoucher = () => {
     applyVoucherByCode(voucherCodeInput);
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCodeInput('');
+    setVoucherMessage(null);
   };
 
   const handleBooking = async () => {
@@ -695,64 +715,172 @@ export const SeatMap = ({ showtime, onBack, onBookingSuccess, onRequireAuth }: S
           </div>
 
           {/* VOUCHER QUICK SELECTOR & INPUT */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
-            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text)', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Gift size={15} color="var(--primary)" /> Mã Voucher Giảm Giá
-            </h4>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Gift size={16} color="var(--primary)" /> Voucher & Mã Giảm Giá
+              </h4>
+              {myVouchers.length > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', backgroundColor: 'var(--primary-soft)', padding: '2px 8px', borderRadius: '12px' }}>
+                  {myVouchers.length} mã khả dụng
+                </span>
+              )}
+            </div>
 
-            {myVouchers.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                {myVouchers.map((v) => {
-                  const isSelected = appliedVoucher && appliedVoucher.voucher?.code === v.code;
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => handleSelectQuickVoucher(v)}
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: 'var(--radius-pill)',
-                        border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-                        backgroundColor: isSelected ? 'var(--primary-soft)' : '#FFFFFF',
-                        color: isSelected ? 'var(--primary)' : 'var(--text-muted)',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Tag size={10} />
-                      <span>{v.code}</span>
-                      {isSelected && <Check size={11} />}
-                    </button>
-                  );
-                })}
+            {/* Danh sách Voucher khả dụng trong ví khách hàng */}
+            {myVouchers.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  Voucher trong ví của bạn (Bấm để áp dụng ngay):
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '2px' }}>
+                  {myVouchers.map((v) => {
+                    const isSelected = appliedVoucher && appliedVoucher.voucher?.code === v.code;
+                    const isPersonal = v.userId === currentUser?.id;
+                    const discountText = v.discountPercent
+                      ? `Giảm ${v.discountPercent}%`
+                      : `Giảm ${Number(v.discountAmount).toLocaleString('vi-VN')}đ`;
+
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => {
+                          if (subTotal === 0) {
+                            setVoucherMessage({ type: 'error', text: 'Vui lòng chọn ghế trước khi áp dụng mã giảm giá!' });
+                            return;
+                          }
+                          handleSelectQuickVoucher(v);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: isSelected
+                            ? '1.5px solid var(--primary)'
+                            : isPersonal
+                            ? '1.5px solid #c084fc'
+                            : '1px solid var(--border)',
+                          backgroundColor: isSelected
+                            ? 'var(--primary-soft)'
+                            : isPersonal
+                            ? 'rgba(147, 51, 234, 0.05)'
+                            : 'var(--bg-soft)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? 'var(--primary)' : isPersonal ? '#9333ea' : 'var(--text)' }}>
+                              {v.code}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)' }}>
+                              ({discountText})
+                            </span>
+                            {isPersonal && (
+                              <span style={{ fontSize: '9px', fontWeight: '800', backgroundColor: '#9333ea', color: '#FFFFFF', padding: '1px 6px', borderRadius: '4px' }}>
+                                TẶNG BẠN
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            Đơn từ: {Number(v.minOrderAmount).toLocaleString('vi-VN')}đ • HSD: {new Date(v.expireAt).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border)',
+                            backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
+                            color: isSelected ? '#FFFFFF' : 'var(--text)',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          {isSelected ? (
+                            <>
+                              <Check size={12} /> Đang dùng
+                            </>
+                          ) : (
+                            'Áp dụng'
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            )}
+            ) : null}
 
+            {/* Ô nhập mã thủ công */}
             <div style={{ display: 'flex', gap: '6px' }}>
               <input
                 type="text"
-                placeholder="Nhập mã voucher..."
+                placeholder={myVouchers.length > 0 ? "Hoặc nhập mã voucher khác..." : "Nhập mã voucher giảm giá..."}
                 value={voucherCodeInput}
                 onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
                 className="cine-input"
-                style={{ fontSize: '12px', padding: '6px 10px' }}
+                style={{ fontSize: '12px', padding: '7px 10px' }}
               />
               <button
                 type="button"
                 onClick={handleApplyVoucher}
                 disabled={voucherLoading || !voucherCodeInput.trim() || subTotal === 0}
                 className="btn-outline"
-                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                style={{ padding: '7px 14px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: '700' }}
               >
                 {voucherLoading ? '...' : 'Áp Dụng'}
               </button>
             </div>
-            {voucherMessage && (
-              <span style={{ fontSize: '11px', display: 'block', marginTop: '4px', color: voucherMessage.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+
+            {/* Banner hiển thị Voucher đang được áp dụng */}
+            {appliedVoucher && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '7px 12px',
+                  backgroundColor: 'var(--success-soft)',
+                  border: '1px solid var(--success)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: 'var(--success)',
+                  fontWeight: '700',
+                }}
+              >
+                <span>✓ Đã áp dụng mã [{appliedVoucher.voucher?.code}] - Giảm {Number(appliedVoucher.discountAmount).toLocaleString('vi-VN')}đ</span>
+                <button
+                  type="button"
+                  onClick={handleRemoveVoucher}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--danger)',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '0 4px',
+                  }}
+                >
+                  ✕ Hủy
+                </button>
+              </div>
+            )}
+
+            {voucherMessage && !appliedVoucher && (
+              <span style={{ fontSize: '11px', display: 'block', marginTop: '4px', color: voucherMessage.type === 'success' ? 'var(--success)' : 'var(--danger)', fontWeight: '600' }}>
                 {voucherMessage.text}
               </span>
             )}
